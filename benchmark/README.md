@@ -20,7 +20,7 @@ can't show is the failure this method exists to prevent.
 | 2026-11-01 | case-c, two runs | 6 | 1 | 7 | Real-footage music video edit |
 | 2026-11-01 | case-d, two runs | 2 | 3 | 3 | Chess meme |
 | 2026-11-01 | case-e, two runs | 0 | 2 | 6 | Gameplay background with narration |
-| 2026-11-01 | case-f, two runs | 13 | 0 | 9 | AI images as cut-out layers, after the skill fixes |
+| 2026-11-01 | case-f, two runs | 13 | 0 | 9 | Code-made test video, after the skill fixes |
 
 **Hard cases, b to e, as first scored:** 15 right, 7 wrong, 18 unknown of 40, so 68% of
 answers given were right.
@@ -32,11 +32,11 @@ stands as the headline, because these were found after the agents ran.
 
 Where the unknowns came from: 10 of 18 are voice or music, and 6 of 18 are automation.
 
-**Case-f, the first AI-image case:** both agents named AI images and layer animation with
-nothing wrong. It ran after the skill and question fixes, so its score isn't directly
-comparable with b to e, and b to e haven't been rerun. It was built by the skill's
-author, and the image origin comes from the commit that made the video. All nine unknowns are shots, font, music, voice or automation, so shot counting
-in layered videos is now a clear gap. Both agents chose caution: neither gave a shot count.
+**Case-f, a code-made test video:** both agents answered with nothing wrong. It ran after
+the skill and question fixes, so its score isn't directly comparable with b to e, and b to e
+haven't been rerun. It was built by the skill's author, and its answer key is private. All
+nine unknowns are shots, font, music, voice or automation, so shot counting in composited
+videos was a clear gap. Both agents chose caution: neither gave a shot count.
 
 - **Case-a's scores don't compare with b to e.** Its questions include plain file facts.
 - **The two runs disagreed on 4 scored answers** (case-b captions and voice, case-c
@@ -134,7 +134,7 @@ shot counts.
 | a, real zoom with captions | 20 | 26 | Was 65 raw changes, then 34 |
 | c, real footage | 19 | 16 | |
 | e, one continuous clip | 1 | 1 | |
-| f, cut-out layers | 23 | 20 | All 19 cuts are real; 3 added-effect scenes are labelled elements |
+| f, code-made test video | 23 | 20 | All 19 cuts are real; 3 added-effect scenes are labelled elements |
 
 **Only the three seed-100 videos are held out.** `make_zoom_cases.py` generates them, and
 thresholds were frozen first. The first three generated videos failed at 40, 44 and 37

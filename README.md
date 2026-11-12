@@ -32,9 +32,9 @@ An Agent Skill plus two standalone Python scripts:
   (views divided by the median of their neighbours), so the winners and flops you compare
   come from the same channel and format. Tested on TikTok and YouTube.
 
-The skill then walks the agent through the investigation: competing hypotheses for each
-part, fingerprints, web research, winners versus flops, a small rebuild test and a blind
-review. Every claim is labelled measured, seen, blind, found, inferred or unknown.
+The skill then walks the agent through the investigation: adjudicating disputed cuts on
+decoded frames, competing hypotheses for each part, fingerprints, outside sources,
+winners versus flops, a small rebuild test and a blind review. Every claim is labelled measured, seen, blind, found, inferred or unknown.
 
 ## Contents
 
@@ -50,6 +50,10 @@ review. Every claim is labelled measured, seen, blind, found, inferred or unknow
 
 The skill is a standard [Agent Skills](https://agentskills.io) `SKILL.md` folder at
 [`plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video/`](plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video/).
+`SKILL.md` holds the workflow; `references/` holds what the agent loads on demand (how to
+read the evidence, a fingerprint catalogue, channel comparison, rebuild and blind review,
+and a list of known pitfalls, each with the check that prevents it); `assets/` holds the
+teardown template.
 
 **Works with:** tested with Claude Code. Other agents that read Agent Skills (Codex,
 Cursor, OpenCode and others supported by the Skills CLI) should load it the same way, but

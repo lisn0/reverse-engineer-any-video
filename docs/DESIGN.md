@@ -101,6 +101,15 @@ repo. Users bring their own API keys.
 - Don't derive laws from small samples.
 - Generate totals from one ledger per channel, never by hand.
 - Gemini timestamps drift, so snap them to detected boundaries.
+- Human reference annotations miss real boundaries too, so disagreements are settled on
+  frames. Tune on development footage only and score held-out footage once.
+- Flashes, lighting changes, occlusion and large motion inside one view are the main
+  sources of false shots; slow fades that keep the picture's shape are the main misses.
+- Systematic errors narrow the field more than polish does, and a fingerprint names a
+  mechanism, not a brand.
+- A rebuild that reaches the look shows a method can make it, not that the creator used it.
+- The skill keeps a lean `SKILL.md` and moves detail into one-level reference files
+  (evidence reading, fingerprints, channel comparison, rebuild and review, pitfalls).
 
 ## Open questions
 

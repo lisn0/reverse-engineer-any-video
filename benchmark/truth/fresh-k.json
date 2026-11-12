@@ -1,0 +1,6 @@
+{
+  "shots": {"value": 1, "tolerance": 0},
+  "visuals": "ai_image",
+  "voice": "tts",
+  "automation": "code"
+}

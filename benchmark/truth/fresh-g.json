@@ -1,0 +1,9 @@
+{
+  "shots": {"value": 10, "tolerance": 2},
+  "captions": {"value": 0, "tolerance": 0},
+  "transitions": "hard_cuts",
+  "visuals": "live_action",
+  "music": true,
+  "voice": "none",
+  "automation": "code"
+}

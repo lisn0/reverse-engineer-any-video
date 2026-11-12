@@ -1,0 +1,6 @@
+{
+  "beats": {"value": 3, "tolerance": 0},
+  "captions": {"value": 0, "tolerance": 0},
+  "voice": "none",
+  "automation": "code"
+}

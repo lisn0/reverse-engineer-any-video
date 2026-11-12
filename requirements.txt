@@ -1,0 +1,5 @@
+# Core: scan_channel.py and evidence.py. Also install ffmpeg (ffmpeg + ffprobe) on PATH.
+numpy>=1.24
+yt-dlp
+# Optional: transcripts in evidence.py (skip with --no-transcript).
+# pip install faster-whisper

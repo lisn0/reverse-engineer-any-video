@@ -1,0 +1,7 @@
+{
+  "shots": {"value": 1, "tolerance": 0},
+  "captions": {"value": 0, "tolerance": 0},
+  "visuals": "game_or_simulation_render",
+  "voice": "none",
+  "automation": "code"
+}

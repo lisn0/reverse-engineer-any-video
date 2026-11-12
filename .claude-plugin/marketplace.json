@@ -1,0 +1,11 @@
+{
+  "name": "reverse-engineer-any-video",
+  "owner": { "name": "lisn0" },
+  "plugins": [
+    {
+      "name": "reverse-engineer-any-video",
+      "source": "./plugins/reverse-engineer-any-video",
+      "description": "Reverse-engineer any video or channel: measure how it was made and what beats the channel's baseline."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "shots": {"value": 1, "tolerance": 0},
+  "captions": {"value": 0, "tolerance": 0},
+  "visuals": "vector_generated_by_code",
+  "voice": "none",
+  "automation": "code"
+}

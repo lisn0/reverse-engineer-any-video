@@ -1,0 +1,6 @@
+{
+  "name": "reverse-engineer-any-video",
+  "version": "0.1.0",
+  "description": "Reverse-engineer any video or channel: measure how it was made and what beats the channel's baseline.",
+  "license": "MIT"
+}

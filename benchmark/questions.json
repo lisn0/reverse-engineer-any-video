@@ -1,0 +1,20 @@
+{
+  "width": "Frame width in pixels",
+  "height": "Frame height in pixels",
+  "fps": "Frames per second",
+  "shots": "Number of distinct shots",
+  "beats": "Number of narration beats or scenes the video divides into",
+  "captions": "Number of burned-in phrases that follow speech or lyrics; titles, labels and dashboards don't count; 0 if there are none",
+  "spoken_words": "Number of spoken words",
+  "caption_position": "One of: top, middle, bottom",
+  "caption_font": "Font family of the burned-in captions",
+  "transitions": "One of: hard_cuts, crossfades, mixed",
+  "motion": "Main picture motion. One of: none, slow_zoom, pan, layer_animation, generated_video",
+  "visuals": "How the pictures were made. One of: ai_image, stock, hand_drawn_or_design_tool, vector_generated_by_code, ai_video, live_action, game_or_simulation_render",
+  "background": "Main background colour as a #rrggbb hex value",
+  "character_reused": "true or false: is one original character reused across scenes",
+  "scene_pattern": "true or false: does each scene open on the character alone, then show the props",
+  "music": "true or false: is there a music bed",
+  "voice": "The narrator added for this video, not speech inside clips or songs. One of: human, tts, none",
+  "automation": "How it was assembled. One of: manual_editor, template_app, code"
+}

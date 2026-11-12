@@ -1,0 +1,11 @@
+{
+  "shots": {"value": 5, "tolerance": 1},
+  "captions": {"value": 12, "tolerance": 2},
+  "caption_position": "bottom",
+  "transitions": "crossfades",
+  "motion": "pan",
+  "visuals": "ai_image",
+  "music": true,
+  "voice": "tts",
+  "automation": "code"
+}

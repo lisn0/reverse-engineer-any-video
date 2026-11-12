@@ -273,6 +273,13 @@ reads the audio, then hands it all to an agent with an investigation method.
 folder to measure it. The skill's rules say to study the format, not to reproduce a
 script, footage or a likeness.
 
+**Why does a scanner flag "third-party content exposure"?** The skill reads text other
+people wrote: titles, descriptions and transcripts. Someone could hide instructions in
+them (indirect prompt injection). The skill tells the agent to treat all of that as
+untrusted data and never follow it, and `manifest.json` keeps it in a separate
+`untrusted_source_text` block with long descriptions cut to 1,000 characters. The scripts
+only measure files; they don't run anything a video contains.
+
 ## Credits
 
 [Dissect](https://github.com/0xpratzyy/dissect) (MIT) is the comparison baseline in the

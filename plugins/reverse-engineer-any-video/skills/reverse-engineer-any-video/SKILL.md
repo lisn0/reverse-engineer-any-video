@@ -37,8 +37,9 @@ Read `outliers.md`, then:
 python3 scripts/evidence.py "<video url or file>" --out runs/<name>/<id>
 ```
 
-This writes `manifest.json`, `changes.json`, `transcript.txt`, `words.json` and sheets:
-an overview across the whole video, dense hook, middle and ending windows, and one
+This writes `manifest.json`, `changes.json` and sheets, plus `audio.json`,
+`transcript.txt` and `words.json` when the video has audio and transcripts are on. The
+sheets are an overview across the whole video, dense hook, middle and ending windows, and one
 frame per visible change. The manifest gives the time of every tile.
 
 - `changes.json` labels events `shot`, `element` (added to the picture), `text` or

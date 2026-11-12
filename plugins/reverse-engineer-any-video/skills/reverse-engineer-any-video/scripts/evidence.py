@@ -594,7 +594,9 @@ def transcribe(video: Path, out: Path, language: str | None, model: str) -> int:
     from faster_whisper import WhisperModel
 
     engine = WhisperModel(model, device="cpu", compute_type="int8")
-    segments, _ = engine.transcribe(str(video), language=language, word_timestamps=True,
+    # Decode with ffmpeg ourselves: faster-whisper's own PyAV decoder breaks when pip pulls a
+    # newer PyAV than it supports (open() got an unexpected keyword argument 'metadata_errors').
+    segments, _ = engine.transcribe(decode_audio(video), language=language, word_timestamps=True,
                                     vad_filter=True, condition_on_previous_text=False)
     lines, words = [], []
     for segment in segments:

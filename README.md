@@ -13,7 +13,13 @@ npx skills add lisn0/reverse-engineer-any-video
 
 Then ask your agent: *"How was this video made? ./clip.mp4"*
 
-<!-- DEMO: GIF of evidence.py on a sample video goes here -->
+![Demo: install the skill, ask how a clip was made, evidence.py measures it, contact sheet, a cut and a dissolve from changes.json, and the agent's labelled answer](docs/assets/demo.gif)
+
+<sub>Demo clip: a 30-second excerpt (3:20 to 3:50) of
+[*Tears of Steel*](https://mango.blender.org/) (2012), © Blender Foundation, licensed
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), from
+[download.blender.org](https://download.blender.org/demo/movies/ToS/). The answer card is
+condensed from that run's real measurements and contact sheet.</sub>
 
 An Agent Skill plus two standalone Python scripts:
 

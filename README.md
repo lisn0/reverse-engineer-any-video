@@ -276,8 +276,9 @@ script, footage or a likeness.
 **Why does a scanner flag "third-party content exposure"?** The skill reads text other
 people wrote: titles, descriptions and transcripts. Someone could hide instructions in
 them (indirect prompt injection). The skill tells the agent to treat all of that as
-untrusted data and never follow it, and `manifest.json` keeps it in a separate
-`untrusted_source_text` block with long descriptions cut to 1,000 characters. The scripts
+untrusted data and never follow it. `manifest.json` keeps the title and channel name in a
+separate `untrusted_source_text` block and leaves the description out unless you pass
+`--include-description` (then capped at 1,000 characters). The scripts
 only measure files; they don't run anything a video contains.
 
 ## Credits

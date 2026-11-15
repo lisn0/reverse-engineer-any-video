@@ -441,3 +441,36 @@ per second, off-centre or combined motion, parallax, and rapid changes between e
 An empty reading leaves the motion unresolved. A fit describes visible pixels and can
 also come from a large moving layer. The three zooms and the diagonal clip are synthetic.
 The motion test set still needs a human-edited video with a motion reference.
+
+### Claude Eyes comparison
+
+Claude Eyes 0.2.0 at `a5409613` and our installed-equivalent detector at
+`a8e45b8` received the same three newly authored 30 fps clips. The edit
+instructions give the reference frames. No detector received the answer key.
+The scorer matches one prediction per edit within two frames of a cut or inside
+a transition window plus two frames. A time match on a wipe or dip does not
+require the model to label that effect correctly.
+
+| Detector | Hard cuts | Wipes and dips (3–6 frames) | Dissolves (9–33 frames) | Extra boundaries |
+|---|---:|---:|---:|---:|
+| Claude Eyes | 6/6 | 6/6 | 0/6 | 9 |
+| Default | 6/6 | 6/6 | 3/6 | 4 |
+| With dissolve fitting | 6/6 | 6/6 | 6/6 | 4 |
+
+Three of our four extras are whip-pan controls. The other is a second call on
+one dissolve. Of the six dissolves found with fitting, four have the explicit
+`transition: dissolve` label and two are picked up by the existing gradual cue.
+
+The first three minutes of the separately annotated BBC *Great Plains* excerpt
+provide an independent check. Claude Eyes matched 17/18 with zero extra calls.
+Our default matched 16/18 with four extras. The dissolve fitting matched 16/18
+with six extras. All three missed the published 76.16–79.56 s transition window.
+The fitted dissolve pass is opt-in because of the extra calls.
+
+```bash
+python3 -B benchmark/compare_eyes.py NEW_OUTPUT PINNED_EYES_CHECKOUT
+python3 -B benchmark/compare_eyes.py OTHER_NEW_OUTPUT PINNED_EYES_CHECKOUT --detect-dissolves
+bash benchmark/run_bbc_sample.sh NEW_BBC_OUTPUT "04_Great Plains"
+python3 -B benchmark/compare_eyes.py NEW_EYES_OUTPUT PINNED_EYES_CHECKOUT \
+    --annotated "NEW_BBC_OUTPUT/04_Great Plains.mp4" "NEW_BBC_OUTPUT/04_Great Plains.json"
+```

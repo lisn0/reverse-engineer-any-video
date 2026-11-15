@@ -22,7 +22,7 @@ if ((${#episodes[@]} == 0)); then
 fi
 for name in "${episodes[@]}"; do
     case "$name" in
-        02_Mountains|10_Caves|01_From_Pole_to_Pole|05_Jungles|11_Deserts) ;;
+        02_Mountains|10_Caves|01_From_Pole_to_Pole|"04_Great Plains"|05_Jungles|11_Deserts) ;;
         *) printf 'Unsupported episode: %s\n' "$name" >&2; exit 2 ;;
     esac
 done
@@ -59,7 +59,7 @@ for name in "${episodes[@]}"; do
     boundaries="$work/$name.json"
     frames="$work/$name.frames"
     curl -fsSL --retry 2 --retry-delay 2 --max-time 30 --max-filesize 16384 \
-        "$base/$name.txt?download=1" -o "$labels"
+        "$base/${name// /%20}.txt?download=1" -o "$labels"
     # Decode the presentation frames before trimming. H.264 packet order can leave
     # a hole at the end of a stream-copy excerpt, even when its frame count is right.
     if ! encode_excerpt "$base/bbc_${name:0:2}.mp4?download=1" "$video"; then

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Video review</title>
+<style>
+:root{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#e8eaf0;background:#101216;font-synthesis:none;font-optical-sizing:auto;font-size:15px;line-height:1.5;font-weight:400;--surface:#181b21;--surface-raised:#20242c;--line:#343943;--muted:#a3a9b5;--text:#e8eaf0;--accent:#9cceff;--accent-strong:#6ab5ff;--warm:#f0bf82;--green:#9bd5b0}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{color:inherit;background:var(--surface-raised);border:1px solid var(--line);border-radius:7px;padding:.45rem .7rem;cursor:pointer}button:hover{border-color:var(--accent)}button:focus-visible,input:focus-visible,video:focus-visible,a:focus-visible{outline:2px solid var(--accent-strong);outline-offset:2px}.shell{max-width:1600px;margin:auto;padding:22px clamp(14px,2.5vw,36px) 48px}.topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:18px}.eyebrow,.meta,.muted{color:var(--muted)}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:700}.topbar h1{font-size:clamp(1.35rem,3vw,2rem);line-height:1.15;margin:.25rem 0 0}.top-actions{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;justify-content:flex-end}.toggle{display:flex;align-items:center;gap:.45rem;color:var(--muted);font-size:.9rem}.toggle input{accent-color:var(--accent-strong)}.workspace{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.9fr);gap:14px;align-items:start}.players{display:grid;grid-template-columns:repeat(var(--player-count,1),minmax(0,1fr));gap:12px;min-width:0}.player-card,.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}.player-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:11px 14px}.player-head h2{margin:0;font-size:1rem;font-weight:620}.player-head .meta{font-size:.78rem}.video-wrap{position:relative;background:#050608;aspect-ratio:16/9}.video-wrap video{display:block;width:100%;height:100%;object-fit:contain}.file-relink{position:absolute;inset:auto 12px 12px 12px;display:none;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid #697181;border-radius:7px;background:#171a20eF;color:var(--text);font-size:.85rem}.file-relink.visible{display:flex}.file-relink input{max-width:65%;font-size:.8rem}.timeline{padding:12px 14px 15px}.timeline-track{height:12px;position:relative;border-radius:999px;background:#30343c;margin:11px 0 13px;cursor:pointer}.timeline-track:focus-visible{outline:2px solid var(--accent-strong);outline-offset:3px}.playhead{position:absolute;left:0;top:-4px;width:3px;height:20px;border-radius:2px;background:#fff;pointer-events:none}.marker{position:absolute;top:1px;width:8px;height:8px;border:1px solid #15171b;border-radius:50%;transform:translateX(-50%);background:var(--warm);padding:0;min-width:0;min-height:0}.marker[data-kind="shot"]{background:var(--accent-strong)}.marker:hover{transform:translateX(-50%) scale(1.4)}.event-list{display:flex;gap:6px;overflow-x:auto;padding:2px 1px 4px}.event-chip{white-space:nowrap;font-size:.76rem;padding:.25rem .45rem;border-radius:5px}.event-chip time{color:var(--accent);font-variant-numeric:tabular-nums}.side{display:grid;gap:14px}.panel{padding:14px}.panel h2{font-size:1rem;margin:0 0 10px}.searchbox{display:flex;gap:7px}.searchbox input{flex:1;min-width:0;background:#0f1115;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:.55rem .65rem}.search-tabs{display:flex;gap:7px;margin:10px 0}.search-tabs button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:#222a33}.results{display:grid;gap:7px;max-height:340px;overflow:auto}.result{display:grid;grid-template-columns:62px minmax(0,1fr);gap:9px;align-items:start;text-align:left;width:100%;padding:9px;background:#14171c}.result time{color:var(--accent);font-size:.8rem;font-variant-numeric:tabular-nums}.result-text{min-width:0}.result blockquote{margin:0;font-size:.9rem;overflow-wrap:anywhere}.result .track-label{display:block;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}.result img{display:block;grid-column:2;width:min(100%,220px);max-height:118px;object-fit:cover;border-radius:5px;border:1px solid var(--line);margin-top:7px}.empty{color:var(--muted);font-size:.87rem;margin:.4rem 0}.transcript{max-height:270px;overflow:auto;border-top:1px solid var(--line);margin-top:13px;padding-top:9px}.transcript-line{display:grid;grid-template-columns:54px 1fr;gap:8px;color:#c4c8d0;font-size:.86rem;padding:3px 0}.transcript-line button{padding:0;border:0;background:none;color:var(--accent);text-align:left;font-variant-numeric:tabular-nums}.metrics{margin-top:14px}.metrics table{width:100%;border-collapse:collapse;font-size:.85rem}.metrics th,.metrics td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:8px 10px}.metrics th{color:var(--muted);font-weight:550}.metrics td:not(:first-child){font-variant-numeric:tabular-nums}.coverage{font-size:.8rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:5px 12px}.coverage span::before{content:"";display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:6px}.coverage .not-covered::before{background:#737986}.footnote{color:var(--muted);font-size:.77rem;margin:.7rem 0 0}.hide{display:none!important}@media(max-width:980px){.workspace{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}.players[style*="--player-count: 2"]{grid-template-columns:1fr 1fr}}@media(max-width:620px){.shell{padding:14px 11px 30px}.topbar{align-items:flex-start;flex-direction:column}.top-actions{justify-content:flex-start}.side{grid-template-columns:1fr}.players[style*="--player-count: 2"]{grid-template-columns:1fr}.player-head{padding:9px 11px}.timeline{padding:10px 11px}.panel{padding:12px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div><div class="eyebrow">Video review</div><h1 id="report-title">Evidence and playback</h1></div>
+    <div class="top-actions">
+      <label id="link-control" class="toggle hide"><input id="link-seek" type="checkbox"> Link report seeks</label>
+    </div>
+  </header>
+  <div class="workspace">
+    <section id="players" class="players" aria-label="Video playback"></section>
+    <aside class="side">
+      <section class="panel" aria-labelledby="search-title">
+        <h2 id="search-title">Search this video</h2>
+        <form id="search-form" class="searchbox"><input id="query" type="search" placeholder="Phrase said or shown" aria-label="Search spoken words and on-screen text"><button type="submit">Search</button></form>
+        <div class="search-tabs" role="group" aria-label="Search evidence type"><button type="button" data-track="all" aria-pressed="true">All</button><button type="button" data-track="said" aria-pressed="false">Said</button><button type="button" data-track="shown" aria-pressed="false">Shown</button></div>
+        <div id="results" class="results" aria-live="polite"><p class="empty">Search indexed speech and sampled frames.</p></div>
+        <p class="footnote">Visible text comes from sampled frames. A brief caption may fall between samples.</p>
+      </section>
+      <section class="panel" aria-labelledby="transcript-title">
+        <h2 id="transcript-title">Transcript</h2>
+        <div id="coverage" class="coverage"></div>
+        <div id="transcript" class="transcript"></div>
+      </section>
+    </aside>
+  </div>
+  <section id="metrics-panel" class="panel metrics hide" aria-labelledby="metrics-title"><h2 id="metrics-title">Style comparison</h2><div id="metrics"></div></section>
+</main>
+<script type="application/json" id="report-data">__VIDEO_REPORT_DATA__</script>
+<script>
+(() => {
+  "use strict";
+  const dataNode = document.getElementById("report-data");
+  let report;
+  try { report = JSON.parse(dataNode.textContent); }
+  catch { document.getElementById("players").textContent = "The report data could not be read."; return; }
+  const videos = Array.isArray(report.videos) ? report.videos.slice(0, 2) : [];
+  if (!videos.length) { document.getElementById("players").textContent = "No video evidence was included."; return; }
+  const players = document.getElementById("players");
+  const states = [];
+  let activeTrack = "all";
+  let linked = false;
+  const formatTime = value => {
+    const seconds = Math.max(0, Number(value) || 0);
+    const whole = Math.floor(seconds);
+    const mm = Math.floor(whole / 60);
+    const ss = String(whole % 60).padStart(2, "0");
+    const hh = Math.floor(mm / 60);
+    return hh ? `${hh}:${String(mm % 60).padStart(2, "0")}:${ss}` : `${mm}:${ss}`;
+  };
+  const tokens = value => {
+    const normalized = String(value || "").normalize("NFKC").toLocaleLowerCase();
+    try { return normalized.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[^\p{P}\p{S}\p{Z}\p{C}_]+/gu) || []; }
+    catch { return normalized.match(/[\u3040-\u30ff\u3400-\u9fff]|[^\W_]+/gu) || []; }
+  };
+  function addText(tag, value, parent, className) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value == null ? "" : String(value);
+    parent.append(node);
+    return node;
+  }
+  function seek(index, time) {
+    const target = Math.max(0, Number(time) || 0);
+    const mediaTime = target + (Number(videos[index].pictureOffset) || 0);
+    states[index].video.currentTime = Math.min(mediaTime, Number.isFinite(states[index].video.duration) ? states[index].video.duration : mediaTime);
+    if (linked && videos.length > 1) {
+      const other = 1 - index;
+      const requestedTime = target + (Number(videos[other].pictureOffset) || 0);
+      const otherTime = Math.min(requestedTime, Number.isFinite(states[other].video.duration) ? states[other].video.duration : requestedTime);
+      if (states[other].video.readyState) states[other].video.currentTime = otherTime;
+      else states[other].pendingSeek = otherTime;
+    }
+    states[index].video.focus({preventScroll:true});
+  }
+  videos.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "player-card";
+    const header = document.createElement("div"); header.className = "player-head";
+    const title = addText("h2", item.label || `Video ${index + 1}`, header);
+    const meta = addText("span", formatTime(item.duration), header, "meta");
+    card.append(header);
+    const wrap = document.createElement("div"); wrap.className = "video-wrap";
+    const player = document.createElement("video");
+    player.controls = true; player.preload = "metadata"; player.playsInline = true;
+    player.setAttribute("aria-label", `Play ${item.label || `video ${index + 1}`}`);
+    if (item.media) player.src = String(item.media);
+    wrap.append(player);
+    const relink = document.createElement("label"); relink.className = "file-relink";
+    addText("span", "Choose the source video to play it here", relink);
+    const picker = document.createElement("input"); picker.type = "file"; picker.accept = "video/*"; picker.setAttribute("aria-label", "Choose source video"); relink.append(picker);
+    picker.addEventListener("change", () => { if (picker.files && picker.files[0]) player.src = URL.createObjectURL(picker.files[0]); });
+    player.addEventListener("error", () => relink.classList.add("visible"));
+    player.addEventListener("loadedmetadata", () => { relink.classList.remove("visible"); if (states[index].pendingSeek != null) { player.currentTime = states[index].pendingSeek; states[index].pendingSeek = null; } });
+    wrap.append(relink); card.append(wrap);
+    const timeline = document.createElement("div"); timeline.className = "timeline";
+    const track = document.createElement("div"); track.className = "timeline-track"; track.setAttribute("role", "slider"); track.tabIndex = 0;
+    track.setAttribute("aria-label", `${item.label || `Video ${index + 1}`} timeline`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", String(item.pictureDuration || item.duration || 0)); track.setAttribute("aria-valuenow", "0");
+    const head = document.createElement("span"); head.className = "playhead"; track.append(head);
+    track.addEventListener("click", event => { const rect = track.getBoundingClientRect(); seek(index, ((event.clientX - rect.left) / rect.width) * (Number(item.pictureDuration) || Number(item.duration) || 0)); });
+    track.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const pictureTime = player.currentTime - (Number(item.pictureOffset) || 0);
+      const end = item.pictureDuration || item.duration;
+      const target = event.key === "Home" ? 0
+        : event.key === "End" ? end
+        : pictureTime + (event.key === "ArrowRight" ? step : -step);
+      seek(index, target);
+    });
+    player.addEventListener("timeupdate", () => { const t = Math.max(0, (player.currentTime || 0) - (Number(item.pictureOffset) || 0)); head.style.left = `${Math.min(100, (t / (Number(item.pictureDuration) || Number(item.duration) || 1)) * 100)}%`; track.setAttribute("aria-valuenow", String(t)); track.setAttribute("aria-valuetext", formatTime(t)); });
+    timeline.append(track);
+    const eventList = document.createElement("div"); eventList.className = "event-list"; eventList.setAttribute("aria-label", "Detected changes");
+    (item.events || []).forEach(event => { const button = document.createElement("button"); button.type="button"; button.className="event-chip"; const when=document.createElement("time"); when.textContent=formatTime(event.t); button.append(when, document.createTextNode(` ${event.transition || event.cue || event.kind || "change"}`)); button.addEventListener("click", () => seek(index, event.t)); eventList.append(button); });
+    if (eventList.childNodes.length) timeline.append(eventList); else addText("p", "No detected changes in this index.", timeline, "empty");
+    card.append(timeline); players.append(card);
+    states.push({video:player, pendingSeek:null});
+  });
+  players.style.setProperty("--player-count", String(videos.length));
+  if (videos.length > 1) document.getElementById("link-control").classList.remove("hide");
+  document.getElementById("link-seek").addEventListener("change", event => { linked = event.currentTarget.checked; });
+  const coverage = document.getElementById("coverage");
+  for (const [track, label] of [["speech", "Speech"], ["screen", "On-screen text"]]) {
+    const state = videos[0].coverage?.[track] || "not indexed";
+    const span = addText("span", `${label}: ${state}`, coverage);
+    if (["skipped", "not indexed", "no audio"].includes(state)) span.classList.add("not-covered");
+  }
+  const transcript = document.getElementById("transcript");
+  const words = videos[0].words || [];
+  if (words.length) {
+    let lineStart = -1;
+    words.forEach(word => {
+      if (lineStart < 0 || Number(word.start) - lineStart >= 4) {
+        lineStart = Number(word.start);
+        const row = document.createElement("div");
+        row.className = "transcript-line";
+        const jump = document.createElement("button");
+        jump.type = "button";
+        jump.textContent = formatTime(word.start);
+        jump.setAttribute("aria-label", `Seek to ${formatTime(word.start)}`);
+        jump.addEventListener("click", () => seek(0, word.start));
+        row.append(jump);
+        const line = document.createElement("span");
+        line.textContent = word.word;
+        row.append(line);
+        transcript.append(row);
+      } else {
+        transcript.lastElementChild.lastElementChild.append(document.createTextNode(` ${word.word}`));
+      }
+    });
+  } else {
+    addText("p", "No speech transcript is available.", transcript, "empty");
+  }
+  const resultArea = document.getElementById("results");
+  function renderSearch(query) {
+    resultArea.replaceChildren();
+    const phrase = tokens(query);
+    if (!phrase.length) {
+      addText("p", "Enter a phrase to search.", resultArea, "empty");
+      return;
+    }
+    const found = [];
+    videos.forEach((item, videoIndex) => {
+      const spokenWords = item.words || [];
+      const flattened = [];
+      spokenWords.forEach((word, index) => {
+        tokens(word.word).forEach(token => flattened.push({token, index}));
+      });
+      for (let i = 0; i <= flattened.length - phrase.length; i++) {
+        if (!phrase.every((token, offset) => flattened[i + offset].token === token)) continue;
+        const first = flattened[i].index;
+        const last = flattened[i + phrase.length - 1].index;
+        const separated = spokenWords.slice(first, last).some((word, offset) =>
+          Number(spokenWords[first + offset + 1].start) - Number(word.end) > 1.5);
+        if (separated) continue;
+        found.push({videoIndex, track: "said", start: spokenWords[first].start,
+                    end: spokenWords[last].end,
+                    text: spokenWords.slice(first, last + 1).map(word => word.word).join(" ")});
+      }
+      if (activeTrack !== "said") {
+        let shown = null;
+        const sampleEvery = Number(item.coverage?.minimum_sample_spacing_s) || 1;
+        (item.frames || []).forEach(frame => {
+          const content = frame.text || "";
+          const frameTokens = tokens(content);
+          let match = false;
+          for (let i = 0; i <= frameTokens.length - phrase.length; i++) {
+            if (phrase.every((token, offset) => frameTokens[i + offset] === token)) {
+              match = true;
+              break;
+            }
+          }
+          if (!match) {
+            if (shown) found.push(shown);
+            shown = null;
+            return;
+          }
+          if (shown && frame.t - shown.end <= sampleEvery * 1.5) {
+            shown.end = frame.t;
+            return;
+          }
+          if (shown) found.push(shown);
+          shown = {videoIndex, track: "shown", start: frame.t, end: frame.t,
+                   text: content, image: frame.image};
+        });
+        if (shown) found.push(shown);
+      }
+    });
+    const matches = found.filter(hit => activeTrack === "all" || hit.track === activeTrack)
+      .sort((a, b) => a.start - b.start || a.videoIndex - b.videoIndex);
+    if (!matches.length) {
+      addText("p", "No matches in the indexed evidence.", resultArea, "empty");
+      return;
+    }
+    matches.forEach(hit => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "result";
+      const videoLabel = videos[hit.videoIndex].label || `Video ${hit.videoIndex + 1}`;
+      const prefix = videos.length > 1 ? `${videoLabel} · ` : "";
+      const time = addText("time", `${prefix}${formatTime(hit.start)}`, button);
+      time.dateTime = `PT${hit.start}S`;
+      const body = document.createElement("span");
+      body.className = "result-text";
+      addText("span", hit.track, body, "track-label");
+      addText("blockquote", hit.text, body);
+      if (hit.track === "shown" && hit.end > hit.start) {
+        addText("span", `Shown through ${formatTime(hit.end)}`, body, "meta");
+      }
+      button.append(body);
+      if (hit.image) {
+        const image = document.createElement("img");
+        image.src = `${videos[hit.videoIndex].base || ""}${hit.image}`;
+        image.alt = `Frame at ${formatTime(hit.start)}`;
+        button.append(image);
+      }
+      button.addEventListener("click", () => seek(hit.videoIndex, hit.start));
+      resultArea.append(button);
+    });
+  }
+  document.getElementById("search-form").addEventListener("submit",event=>{event.preventDefault();renderSearch(document.getElementById("query").value);});
+  document.querySelectorAll(".search-tabs button").forEach(button=>button.addEventListener("click",()=>{activeTrack=button.dataset.track;document.querySelectorAll(".search-tabs button").forEach(tab=>tab.setAttribute("aria-pressed",String(tab===button)));if(document.getElementById("query").value)renderSearch(document.getElementById("query").value);}));
+  const metrics=Array.isArray(report.metrics)?report.metrics:[];
+  if (metrics.length) {
+    const section = document.getElementById("metrics-panel");
+    section.classList.remove("hide");
+    const table = document.createElement("table");
+    const header = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    addText("th", "Measure", headerRow);
+    videos.forEach((video, index) => addText("th", video.label || `Video ${index + 1}`, headerRow));
+    const hasDelta = videos.length > 1 && metrics.some(metric => metric.delta != null);
+    if (hasDelta) addText("th", "Candidate − reference", headerRow);
+    header.append(headerRow);
+    table.append(header);
+    const body = document.createElement("tbody");
+    metrics.forEach(metric => {
+      const row = document.createElement("tr");
+      addText("th", metric.label, row);
+      videos.forEach((_, index) => {
+        const value = Array.isArray(metric.values) ? metric.values[index] ?? "—" : "—";
+        addText("td", value, row);
+      });
+      if (hasDelta) addText("td", metric.delta ?? "—", row);
+      body.append(row);
+    });
+    table.append(body);
+    document.getElementById("metrics").append(table);
+  }
+})();
+</script>
+</body>
+</html>

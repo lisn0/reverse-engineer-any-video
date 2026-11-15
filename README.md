@@ -1,6 +1,6 @@
 # reverse-engineer-any-video
 
-**Give your agent the evidence to work out how any video was made, and which of a channel's videos actually beat its baseline.**
+**Ask questions about a video, search what was said or shown, or work out how it was made.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
@@ -11,7 +11,7 @@
 npx skills add lisn0/reverse-engineer-any-video
 ```
 
-Then ask your agent: *"How was this video made? ./clip.mp4"*
+Then ask your agent *"What steps does this tutorial show?"*, *"Where does it say calibration complete?"* or *"How was this video made?"*.
 
 ![Demo: install the skill, ask how a clip was made, evidence.py measures it, contact sheet, a cut and a dissolve from changes.json, and the agent's labelled answer](docs/assets/demo.gif)
 
@@ -21,8 +21,11 @@ Then ask your agent: *"How was this video made? ./clip.mp4"*
 [download.blender.org](https://download.blender.org/demo/movies/ToS/). The answer card is
 condensed from that run's real measurements and contact sheet.</sub>
 
-An Agent Skill plus two standalone Python scripts:
+An Agent Skill with three Python entry points:
 
+- **`video.py`** indexes a file or URL for questions, with timestamped overview frames,
+  searchable speech, and on-screen text. It also makes searchable playback and
+  comparison reports or extracts a source-resolution frame crop.
 - **`evidence.py`** breaks down one video, a local file or any URL
   [yt-dlp](https://github.com/yt-dlp/yt-dlp) can download, into measurements: source
   facts, contact sheets, shot boundaries confirmed on source frames, pans and zooms,
@@ -73,11 +76,30 @@ on the machine the agent runs on:
 
 ```bash
 brew install ffmpeg            # or: sudo apt install ffmpeg
+brew install tesseract         # for searching on-screen text
 pip install numpy yt-dlp
 pip install faster-whisper     # optional, for transcripts
 ```
 
 ## Quickstart
+
+Index a file or URL once, then reuse it for questions and phrase searches.
+
+```bash
+python3 scripts/video.py index ./clip.mp4 --out runs/clip
+python3 scripts/video.py search "calibration complete" runs/clip --track shown
+python3 scripts/video.py search "restart the sensor" runs/clip runs/another --track said
+python3 scripts/video.py view runs/clip --out player.html
+python3 scripts/video.py compare runs/clip runs/another --out comparison.html
+python3 scripts/video.py frame runs/clip --at 00:07.5 --box 0,0,0.5,0.5 --out detail.png
+```
+
+Speech requires faster-whisper. On-screen text requires Tesseract and the desired
+language data. You can skip either track using `--no-transcript` or `--no-ocr`.
+The default frame interval is one second. Search can miss brief or unclear
+text. Read the returned frame or transcript context before quoting a hit.
+HTML reports reference the source videos and sampled images on disk.
+The report's local file picker lets you reattach a video after moving it.
 
 Ask your agent in plain words:
 

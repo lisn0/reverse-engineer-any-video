@@ -124,7 +124,7 @@ def probe(video: Path) -> dict:
             "has_audio": any(s["codec_type"] == "audio" for s in streams)}
 
 
-def find_changes(video: Path, duration: float, out: Path) -> dict:
+def find_changes(video: Path, duration: float, out: Path, *, detect_dissolves: bool = False) -> dict:
     """Compare small grey frames, find spikes of change and label what each one was."""
     raw = out / ".frames.gray"
     run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-vf",
@@ -153,12 +153,33 @@ def find_changes(video: Path, duration: float, out: Path) -> dict:
     del frames
     raw.unlink()
     native, times = native_frames(video)
-    changes["events"], changes["uncertain_shots"] = confirm_shots(native, times, events, uncertain)
+    changes["events"], changes["uncertain_shots"] = confirm_shots(
+        native, times, events, uncertain, detect_dissolves=detect_dissolves
+    )
     return changes
 
 
+def sparse_text_change(before: np.ndarray, after: np.ndarray) -> float | None:
+    """Recognize a narrow, high-contrast change on the same nearly flat background."""
+    if min(before.std(), after.std()) >= math.sqrt(FLAT_PICTURE):
+        return None
+    difference = np.abs(after - before)
+    changed = difference > PIXEL_DELTA
+    share = float(changed.mean())
+    if not 0 < share <= 0.12 or np.median(difference) > 2:
+        return None
+    rows = np.flatnonzero(changed.any(axis=1))
+    if (rows[-1] - rows[0] + 1) / before.shape[0] > 0.20:
+        return None
+    columns = np.flatnonzero(changed.any(axis=0))
+    if not (np.diff(columns) > 1).any():
+        return None  # One solid shape provides too little evidence of lettering.
+    return share
+
+
 def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
-                  uncertain: list[dict]) -> tuple[list[dict], list[dict]]:
+                  uncertain: list[dict], *,
+                  detect_dissolves: bool = False) -> tuple[list[dict], list[dict]]:
     """Decide shot boundaries from source frames, using the sampled changes as candidates.
 
     A hard cut is a one-frame change in picture structure that stands far above the
@@ -167,8 +188,12 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
     much more than each side changes on its own. Anything else stays for review.
     """
     steps = structure_changes(frames)
-    cuts, review = [], []
+    cuts, review, text_changes = [], [], []
     for i in isolated_spikes(steps, times, CUT_STRUCTURE, CUT_SPIKE):
+        text_share = sparse_text_change(frames[i - 1], frames[i])
+        if text_share is not None:
+            text_changes.append({"t": round(times[i], 3), "kind": "text", "changed": round(text_share, 4)})
+            continue
         view = view_similarity(frames, times, times[i], times[i])
         entry = {"t": round(times[i], 3), "structure_change": round(float(steps[i]), 3),
                  "view_kept": None if view is None else round(view, 3)}
@@ -180,9 +205,14 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
     def near_cut(t: float, distance: float) -> bool:
         return any(abs(t - cut["t"]) <= distance for cut in cuts)
 
-    kept = [event for event in events if not near_cut(event["t"], CUT_MERGE_S)]
+    def replaced(t: float) -> bool:
+        return near_cut(t, CUT_MERGE_S) or any(
+            abs(t - change["t"]) <= 1 / SAMPLE_FPS for change in text_changes
+        )
+
+    kept = [event for event in events if not replaced(event["t"])]
     sampled = [(event, True) for event in kept if event["kind"] == "shot"]
-    sampled += [(event, False) for event in uncertain if not near_cut(event["t"], CUT_MERGE_S)]
+    sampled += [(event, False) for event in uncertain if not replaced(event["t"])]
     gradual = []
     for event, counted in sampled:
         if near_cut(event["t"], GRADUAL_CLEARANCE_S):
@@ -202,8 +232,70 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
             event = {key: value for key, value in event.items() if key != "kind"}
         review.append({**event, "why": why})
     others = [event for event in kept if event["kind"] != "shot"]
-    final = sorted(others + cuts + gradual, key=lambda event: event["t"])
+    dissolves = find_dissolves(frames, times, [cut["t"] for cut in cuts]) if detect_dissolves else []
+    for dissolve in dissolves:
+        existing = [
+            event for event in gradual
+            if dissolve["start"] <= event["t"] <= dissolve["end"]
+        ]
+        if existing:
+            nearest = min(existing, key=lambda event: abs(event["t"] - dissolve["t"]))
+            dissolve["t"] = nearest["t"]
+            gradual = [event for event in gradual if event not in existing]
+    final = sorted(others + text_changes + cuts + gradual + dissolves, key=lambda event: event["t"])
     return final, sorted(review, key=lambda event: event["t"])
+
+
+
+def find_dissolves(frames: np.ndarray, times: list[float], cuts: list[float]) -> list[dict]:
+    """Look for a full-frame blend between two different pictures on the source clock.
+
+    Test three interior frames. A dissolve follows one increasing mixture of both
+    pictures across the frame. A wipe, a flash or a moving camera usually does not.
+    The endpoints bound the evidence window, rather than marking exact edit frames.
+    """
+    pictures = frames[:, ::4, ::4]
+    fits = []
+    for middle in range(0, len(times), 2):
+        t = times[middle]
+        for radius in (0.15, 0.22, 0.32, 0.45, 0.60):
+            if t - radius - 0.2 < times[0] or t + radius + 0.2 > times[-1]:
+                continue
+            first = bisect_left(times, t - radius)
+            last = bisect_left(times, t + radius)
+            if bisect_left(cuts, times[first]) != bisect_right(cuts, times[last]):
+                continue
+            start, end = pictures[first], pictures[last]
+            delta = end - start
+            energy = np.square(delta).sum()
+            if energy < delta.size * 12 ** 2:
+                continue
+            inside = pictures[[bisect_left(times, t - radius / 2), middle,
+                               bisect_left(times, t + radius / 2)]] - start
+            mix = (inside * delta).sum(axis=(1, 2)) / energy
+            if not (0.12 <= mix[0] <= 0.40 and 0.35 <= mix[1] <= 0.65
+                    and 0.60 <= mix[2] <= 0.88 and min(np.diff(mix)) >= 0.12):
+                continue
+            residual = np.square(inside - mix[:, None, None] * delta).sum(axis=(1, 2))
+            error = float(np.sqrt(residual.max() / energy))
+            if error > 0.13:
+                continue
+            if aligned_similarity(frames[first], frames[last]) > GRADUAL_VIEW:
+                continue
+            fits.append((error, first, middle, last))
+
+    # Several windows can fit the same dissolve. Keep the window with the best fit.
+    accepted = []
+    for error, first, middle, last in sorted(fits):
+        start, end = times[first], times[last]
+        if any(start <= event["end"] and end >= event["start"] for event in accepted):
+            continue
+        accepted.append({
+            "kind": "shot", "cue": "gradual", "transition": "dissolve",
+            "t": round(times[middle], 3), "start": times[first], "end": times[last],
+            "blend_error": round(error, 3),
+        })
+    return accepted
 
 
 def gradual_change(frames: np.ndarray, times: list[float], t: float) -> tuple[float, float] | None:
@@ -741,7 +833,11 @@ def main() -> int:
                       help="write only decoded-frame review sheets around this time; repeat up to eight times")
     mode.add_argument("--crosscheck-cuts", action="store_true",
                       help="add a separate native-frame abrupt-change cue to changes.json")
+    parser.add_argument("--detect-dissolves", action="store_true",
+                        help="also fit full-frame crossfades; verify extra shot boundaries in frames")
     args = parser.parse_args()
+    if args.review_at and args.detect_dissolves:
+        parser.error("--detect-dissolves cannot be used with --review-at")
     if args.review_at and (len(args.review_at) > REVIEW_MAX_WINDOWS
                            or any(not math.isfinite(t) or t < 0 for t in args.review_at)):
         parser.error("--review-at takes up to eight finite, nonnegative timestamps")
@@ -765,7 +861,7 @@ def main() -> int:
         report.write_text(json.dumps({"source": source, "facts": facts, "windows": windows}, indent=1))
         print(json.dumps({"review": str(report), "windows": len(windows)}))
         return 0
-    changes = find_changes(video, facts["duration_s"], args.out)
+    changes = find_changes(video, facts["duration_s"], args.out, detect_dissolves=args.detect_dissolves)
     if args.crosscheck_cuts:
         changes["native_cut_candidates_s"] = native_cut_candidates(video, facts["duration_s"])
     (args.out / "changes.json").write_text(json.dumps(changes, indent=1))

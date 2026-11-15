@@ -41,6 +41,37 @@ class ShotConfirmation(unittest.TestCase):
         found = shots(EV["confirm_shots"](frames, times, [], []))
         self.assertEqual([(e["t"], e["cue"]) for e in found], [(2.0, "cut")])
 
+    def test_sparse_title_appearance_and_disappearance_are_text_changes(self):
+        plain = np.full((H, W), 20.0, np.float32)
+        title = plain.copy()
+        for x in (18, 24, 38, 44, 50):
+            title[24:29, x:x + 4] = 240
+        frames, times = clip(*[plain] * 50, *[title] * 60, *[plain] * 50)
+        sampled = [{"t": 2.0, "kind": "shot", "changed": 0.05},
+                   {"t": 4.4, "kind": "text", "changed": 0.05}]
+        events, _ = EV["confirm_shots"](frames, times, sampled, [])
+        self.assertEqual([(e["t"], e["kind"]) for e in events], [(2.0, "text"), (4.4, "text")])
+
+    def test_new_title_card_with_changed_background_is_a_cut(self):
+        plain = np.full((H, W), 20.0, np.float32)
+        card = np.full((H, W), 100.0, np.float32)
+        card[24:29, 18:70] = 240
+        frames, times = clip(*[plain] * 50, *[card] * 50)
+        self.assertEqual([e["t"] for e in shots(EV["confirm_shots"](frames, times, [], []))], [2.0])
+
+    def test_single_shape_on_a_flat_frame_does_not_override_a_cut(self):
+        plain = np.full((H, W), 20.0, np.float32)
+        shape = plain.copy()
+        shape[24:29, 18:70] = 240
+        frames, times = clip(*[plain] * 50, *[shape] * 50)
+        self.assertEqual([e["t"] for e in shots(EV["confirm_shots"](frames, times, [], []))], [2.0])
+
+    def test_low_contrast_replacement_remains_a_cut(self):
+        before = 100 + (texture(18) - 100) * 0.12
+        after = 100 + (texture(19) - 100) * 0.12
+        frames, times = clip(*[before] * 50, *[after] * 50)
+        self.assertEqual([e["t"] for e in shots(EV["confirm_shots"](frames, times, [], []))], [2.0])
+
     def test_sampled_candidate_next_to_cut_merges_into_it(self):
         a, b = texture(1), texture(2)
         frames, times = clip(*[a] * 50, *[b] * 50)
@@ -85,6 +116,17 @@ class ShotConfirmation(unittest.TestCase):
         frames, times = clip(*[a] * 50, *blend, *[b] * 50)
         found = shots(EV["confirm_shots"](frames, times, [], [{"t": 2.2, "changed": 0.3}]))
         self.assertEqual([e["t"] for e in found], [2.2])
+
+    def test_linear_dissolve_is_found_without_a_sampled_candidate(self):
+        a, b = texture(1), texture(2)
+        blend = [a + (b - a) * k / 18 for k in range(1, 18)]
+        frames, times = clip(*[a] * 50, *blend, *[b] * 50)
+        self.assertEqual(shots(EV["confirm_shots"](frames, times, [], [])), [])
+        found = shots(EV["confirm_shots"](frames, times, [], [], detect_dissolves=True))
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["transition"], "dissolve")
+        self.assertGreaterEqual(found[0]["t"], 2.0)
+        self.assertLessEqual(found[0]["t"], 2.68)
 
     def test_candidate_inside_one_steady_view_goes_to_review(self):
         a = texture(9)

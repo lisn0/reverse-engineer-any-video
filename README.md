@@ -5,13 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-black.svg)
-[![Held-out shot F1 94.5%](https://img.shields.io/badge/held--out%20shot%20F1-94.5%25-green.svg)](#benchmark)
 
 ```bash
 npx skills add lisn0/reverse-engineer-any-video
 ```
 
-Then ask your agent *"What steps does this tutorial show?"*, *"Where does it say calibration complete?"* or *"How was this video made?"*.
+Then ask your agent *"What happens in this video?"*, *"Where does it say calibration complete?"*, *"What does the person say about setup?"* or *"How was this video made?"*.
 
 ![Demo: install the skill, ask how a clip was made, evidence.py measures it, contact sheet, a cut and a dissolve from changes.json, and the agent's labelled answer](docs/assets/demo.gif)
 
@@ -21,7 +20,8 @@ Then ask your agent *"What steps does this tutorial show?"*, *"Where does it say
 [download.blender.org](https://download.blender.org/demo/movies/ToS/). The answer card is
 condensed from that run's real measurements and contact sheet.</sub>
 
-An Agent Skill with three Python entry points:
+This open-source video analysis skill has three Python entry points for video
+questions, phrase search, and production analysis.
 
 - **`video.py`** indexes a file or URL for questions, with timestamped overview frames,
   searchable speech, and on-screen text. It also makes searchable playback and
@@ -58,16 +58,17 @@ read the evidence, a fingerprint catalogue, channel comparison, rebuild and blin
 and a list of known pitfalls, each with the check that prevents it); `assets/` holds the
 teardown template.
 
-**Works with:** tested with Claude Code. Other agents that read Agent Skills (Codex,
-Cursor, OpenCode and others supported by the Skills CLI) should load it the same way, but
-haven't been tested yet.
+**Agent support:** this follows the open [Agent Skills](https://agentskills.io) format.
+The repository's plugin route is tested with Claude Code. The Skills CLI supports Codex,
+Claude Code and other agents; install for a specific agent with its `-a` option.
 
 | Route | Command |
 |---|---|
 | Skills CLI ([vercel-labs/skills](https://github.com/vercel-labs/skills)) | `npx skills add lisn0/reverse-engineer-any-video` |
-| One agent only | `npx skills add lisn0/reverse-engineer-any-video -a claude-code` |
+| Codex | `npx skills add lisn0/reverse-engineer-any-video -a codex` |
+| Claude Code skill | `npx skills add lisn0/reverse-engineer-any-video -a claude-code` |
 | Claude Code plugin | `/plugin marketplace add lisn0/reverse-engineer-any-video` then `/plugin install reverse-engineer-any-video@reverse-engineer-any-video` |
-| By hand | copy the skill folder into `.claude/skills/` (Claude Code) or `.agents/skills/` (Codex) |
+| By hand | copy the skill folder into `.agents/skills/reverse-engineer-any-video/` (Codex) or `.claude/skills/reverse-engineer-any-video/` (Claude Code) |
 
 `npx skills add ... --list` shows the skill without installing it.
 
@@ -94,15 +95,18 @@ python3 scripts/video.py compare runs/clip runs/another --out comparison.html
 python3 scripts/video.py frame runs/clip --at 00:07.5 --box 0,0,0.5,0.5 --out detail.png
 ```
 
-Speech requires faster-whisper. On-screen text requires Tesseract and the desired
-language data. You can skip either track using `--no-transcript` or `--no-ocr`.
+Speech search uses matching embedded text captions when available. Audio-only transcription requires faster-whisper. On-screen text requires Tesseract and the desired language data. You can skip either track using `--no-transcript` or `--no-ocr`.
 The default frame interval is one second. Search can miss brief or unclear
 text. Read the returned frame or transcript context before quoting a hit.
 HTML reports reference the source videos and sampled images on disk.
 The report's local file picker lets you reattach a video after moving it.
 
-Ask your agent in plain words:
+Ask general questions about the video, then use the production teardown when you want to
+understand or recreate its format. For example:
 
+- *"Summarize ./clip.mp4 and tell me what happens around 00:42."*
+- *"Find where the speaker mentions calibration in ./clip.mp4."*
+- *"What text appears on screen in ./clip.mp4?"*
 - *"How was this video made: ./clip.mp4"*
 - *"Reverse engineer this channel: https://www.youtube.com/@&lt;handle&gt;/shorts"*
 - *"Which of this channel's videos beat its baseline, and what do they share?"*
@@ -126,6 +130,8 @@ Useful flags for `evidence.py`:
 - `--review-at SECONDS` (repeat up to eight times, with a new `--out`) writes dense
   frame-by-frame sheets around a disputed cut, flash or dissolve, plus `review.json`.
 - `--crosscheck-cuts` adds a separate FFmpeg scene-score cue to compare against.
+- `--detect-dissolves` checks for overlapping shots and puts ambiguous boundaries
+  in the review list.
 
 Run either script with `--help` for all options.
 
@@ -272,17 +278,17 @@ python3 -m unittest discover tests
   made by code. It doesn't support a general accuracy claim.
 - Channel scans are tested on TikTok and YouTube only. Other sites yt-dlp can list may
   work but are untested.
-- Tested with Claude Code only.
-- Status v0.1: scanning is built and measuring is partly built. Automated compare,
-  reconstruct, verify and blueprint steps are designed but not built
-  ([design](docs/DESIGN.md), [roadmap](docs/ROADMAP.md)); for now the agent does them by
-  following the skill.
+- The production teardown is an evidence-guided workflow. Rebuilding a video is a
+  separate, manual experiment; the analysis scripts do not automatically recreate or
+  publish a finished video.
 
 ## FAQ
 
-**How do I make Claude (or another agent) understand a video?** Agents can't watch video.
-This skill turns a video into contact sheets with exact tile times, a cut list, motion
-readings, a timed transcript and audio readings the agent can read and reason about.
+**Can an AI agent analyze a video?** This skill indexes speech and sampled on-screen text
+for phrase search, and creates timestamped overview frames and evidence reports. Ask an
+open question, then verify important details against the cited frame or transcript context.
+The deeper production workflow measures cuts, transitions, motion and audio to investigate
+how a video was made.
 
 **Does it need a GPU or an API key?** No. ffmpeg, numpy and optionally faster-whisper on
 CPU.

@@ -5,7 +5,7 @@
     {
       "name": "reverse-engineer-any-video",
       "source": "./plugins/reverse-engineer-any-video",
-      "description": "Reverse-engineer any video or channel: measure how it was made and what beats the channel's baseline."
+      "description": "Analyze any video: answer questions, search speech and on-screen text, inspect cuts and transitions, and reverse-engineer how it was made."
     }
   ]
 }

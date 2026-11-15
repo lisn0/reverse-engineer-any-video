@@ -1,6 +1,6 @@
 ---
 name: reverse-engineer-any-video
-description: Analyze or reverse-engineer a video from a local file or a URL supported by yt-dlp. Answer questions about what happens, what was said, or what appears on screen. Summarize videos, find phrases in speech or visible text, cite timestamps, and make searchable playback or side-by-side comparison reports. For production teardowns, measure cuts, transitions, motion, captions and audio, compare videos within a channel, and test how a video could be recreated.
+description: Analyze videos from local files or URLs supported by yt-dlp. Answer video questions with timestamps, summarize scenes, find spoken phrases or on-screen text, inspect cuts, transitions, motion and audio, or reverse-engineer production and channel formats.
 ---
 
 # Video analysis and reverse engineering
@@ -21,10 +21,9 @@ python3 scripts/video.py search "calibration complete" runs/<name> --track shown
 ```
 
 Leave off `--track` to search both. Pass more index directories to search across
-videos. Speech hits carry word timestamps; screen hits give the first and last
-matching sample plus a frame to inspect. An empty result may mean the words were
+videos. Transcription hits carry word timestamps. Hits from embedded captions use the original cue interval. Screen hits give the first and last matching sample plus a frame to inspect. An empty result may mean the words were
 missed by speech recognition or fell between sampled frames. Check each track's
-coverage. Speech uses faster-whisper and screen text uses Tesseract. For a
+coverage. Speech search prefers text captions matching the audio language when available, then uses faster-whisper. Screen text uses Tesseract. For a
 visual-only or speech-only question, skip the unused recognizer with
 `--no-transcript` or `--no-ocr`.
 

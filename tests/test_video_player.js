@@ -86,3 +86,15 @@ test("speech results seek to the first matching word", () => {
   get("results").children[0].fire("click");
   assert.equal(created.find(node => node.tag === "video").currentTime, 1.65);
 });
+
+test("caption search accepts accents and seeks to the caption cue start", () => {
+  const video = {duration: 20, pictureOffset: 0.5, label: "Reference", coverage: {},
+    events: [], frames: [], words: [], captions: [{text: "Adélie penguins", start: 4.2, end: 6}]};
+  const {get, created} = initialize({videos: [video], metrics: []});
+  get("query").value = "adelie penguins";
+  get("search-form").fire("submit");
+  assert.equal(get("results").children[0].className, "result");
+  get("results").children[0].fire("click");
+  assert.equal(created.find(node => node.tag === "video").currentTime, 4.7);
+  assert.ok(created.some(node => node.textContent === "caption"));
+});

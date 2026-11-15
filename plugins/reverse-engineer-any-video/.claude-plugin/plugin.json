@@ -1,6 +1,6 @@
 {
   "name": "reverse-engineer-any-video",
-  "version": "0.1.0",
-  "description": "Reverse-engineer any video or channel: measure how it was made and what beats the channel's baseline.",
+  "version": "0.2.0",
+  "description": "Analyze any video: answer questions, search speech and on-screen text, inspect cuts and transitions, and reverse-engineer how it was made.",
   "license": "MIT"
 }

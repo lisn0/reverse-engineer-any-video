@@ -177,6 +177,33 @@ def sparse_text_change(before: np.ndarray, after: np.ndarray) -> float | None:
     return share
 
 
+def localized_graphic_change(before: np.ndarray, after: np.ndarray) -> float | None:
+    """Recognize a small high-contrast graphic added over a textured stable view."""
+    difference = np.abs(after - before)
+    changed = difference > PIXEL_DELTA
+    share = float(changed.mean())
+    if not 0 < share <= 0.10 or float(np.median(difference)) > 2:
+        return None
+    stable_before, stable_after = before[~changed], after[~changed]
+    if min(float(before.std()), float(after.std()),
+           float(stable_before.std()), float(stable_after.std())) < 8:
+        return None
+    if float(difference[changed].mean()) < 45:
+        return None
+    if correlation(stable_before, stable_after) < 0.97:
+        return None
+    return share
+
+
+def near_black_flat_splice(before: np.ndarray, after: np.ndarray) -> bool:
+    """Require manual review when two nearly black flat frames barely differ."""
+    return (
+        float(before.std()) < 3 and float(after.std()) < 3
+        and float(before.max()) < 32 and float(after.max()) < 32
+        and float(np.max(np.abs(after - before))) <= PIXEL_DELTA
+    )
+
+
 def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
                   uncertain: list[dict], *,
                   detect_dissolves: bool = False) -> tuple[list[dict], list[dict]]:
@@ -188,17 +215,33 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
     much more than each side changes on its own. Anything else stays for review.
     """
     steps = structure_changes(frames)
-    cuts, review, text_changes = [], [], []
+    cuts, review, text_changes, graphic_changes = [], [], [], []
     for i in isolated_spikes(steps, times, CUT_STRUCTURE, CUT_SPIKE):
         text_share = sparse_text_change(frames[i - 1], frames[i])
         if text_share is not None:
             text_changes.append({"t": round(times[i], 3), "kind": "text", "changed": round(text_share, 4)})
+            continue
+        if detect_dissolves and near_black_flat_splice(frames[i - 1], frames[i]):
+            review.append({"t": round(times[i], 3),
+                           "structure_change": round(float(steps[i]), 3),
+                           "why": "near-black flat frames provide too little shot evidence"})
+            continue
+        graphic_share = localized_graphic_change(frames[i - 1], frames[i]) if detect_dissolves else None
+        if graphic_share is not None:
+            graphic_changes.append({"t": round(times[i], 3), "kind": "element",
+                                    "cue": "localized graphic", "changed": round(graphic_share, 4)})
             continue
         view = view_similarity(frames, times, times[i], times[i])
         entry = {"t": round(times[i], 3), "structure_change": round(float(steps[i]), 3),
                  "view_kept": None if view is None else round(view, 3)}
         if view is not None and view >= SAME_VIEW:
             review.append({**entry, "why": "the view before returns after"})
+        elif (detect_dissolves and stable_textured_patches(frames[i - 1], frames[i])
+              and (outer_view := view_similarity(frames, times, times[i] - 0.16,
+                                                  times[i] + 0.20)) is not None
+              and outer_view >= 0.38):
+            review.append({**entry, "outer_view_kept": round(outer_view, 3),
+                           "why": "textured regions recur across the nearby view"})
         else:
             cuts.append({**entry, "kind": "shot", "cue": "cut"})
 
@@ -208,7 +251,27 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
     def replaced(t: float) -> bool:
         return near_cut(t, CUT_MERGE_S) or any(
             abs(t - change["t"]) <= 1 / SAMPLE_FPS for change in text_changes
+        ) or any(
+            abs(t - change["t"]) <= 1 / SAMPLE_FPS for change in graphic_changes
         )
+
+    def abrupt_replacement(t: float) -> dict | None:
+        """Promote a gradual anchor when a concentrated native impulse separates two views."""
+        if not detect_dissolves:
+            return None
+        first, last = bisect_left(times, t - 0.17), bisect_right(times, t + 0.17)
+        candidates = [i for i in range(max(first, 1), last) if steps[i] >= 0.45]
+        if not candidates:
+            return None
+        index = min(candidates, key=lambda i: (abs(times[i] - t), times[i]))
+        cut_t = times[index]
+        outer_view = view_similarity(frames, times, cut_t - 0.16, cut_t + 0.20)
+        if outer_view is None or outer_view >= 0.25:
+            return None
+        if near_cut(cut_t, CUT_MERGE_S):
+            return None
+        return {"t": round(cut_t, 3), "structure_change": round(float(steps[index]), 3),
+                "view_kept": round(outer_view, 3), "kind": "shot", "cue": "cut"}
 
     kept = [event for event in events if not replaced(event["t"])]
     sampled = [(event, True) for event in kept if event["kind"] == "shot"]
@@ -223,6 +286,10 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
         if reading is not None:
             view, steady = reading
             if view < GRADUAL_VIEW and view < GRADUAL_RATIO * steady:
+                cut = abrupt_replacement(event["t"])
+                if cut is not None:
+                    cuts.append(cut)
+                    continue
                 gradual.append({**event, "kind": "shot", "cue": "gradual",
                                 "view_kept": round(view, 3), "side_steadiness": round(steady, 3)})
                 continue
@@ -231,34 +298,122 @@ def confirm_shots(frames: np.ndarray, times: list[float], events: list[dict],
         if counted:
             event = {key: value for key, value in event.items() if key != "kind"}
         review.append({**event, "why": why})
+
+    # Dense runs of local gradual matches during a moving shot are ambiguous:
+    # each nearby comparison can differ even though there is no single boundary.
+    # Keep such runs visible for review instead of counting every proposal as a
+    # separate shot. An isolated gradual reading remains decisive.
+    clusters: list[list[dict]] = []
+    for event in sorted(gradual, key=lambda item: item["t"]):
+        separated_by_cut = clusters and any(
+            clusters[-1][-1]["t"] < cut["t"] <= event["t"] for cut in cuts
+        )
+        if clusters and event["t"] - clusters[-1][-1]["t"] <= 1.5 and not separated_by_cut:
+            clusters[-1].append(event)
+        else:
+            clusters.append([event])
+    ambiguous = [
+        event for cluster in clusters
+        if len(cluster) >= 3 and cluster[-1]["t"] - cluster[0]["t"] >= 0.8
+        for event in cluster
+    ]
+    for event in ambiguous:
+        review.append({key: value for key, value in event.items() if key not in {"kind", "cue"}}
+                      | {"why": "part of a dense run of gradual readings; boundary unclear"})
+    gradual = [event for event in gradual if event not in ambiguous]
     others = [event for event in kept if event["kind"] != "shot"]
     dissolves = find_dissolves(frames, times, [cut["t"] for cut in cuts]) if detect_dissolves else []
     for dissolve in dissolves:
-        existing = [
-            event for event in gradual
-            if dissolve["start"] <= event["t"] <= dissolve["end"]
-        ]
+        existing = [event for event in gradual
+                    if dissolve["start"] - MERGE_S <= event["t"] <= dissolve["end"] + MERGE_S
+                    and not any(min(event["t"], dissolve["t"]) < cut["t"]
+                                <= max(event["t"], dissolve["t"]) for cut in cuts)]
         if existing:
             nearest = min(existing, key=lambda event: abs(event["t"] - dissolve["t"]))
-            dissolve["t"] = nearest["t"]
+            if dissolve["start"] <= nearest["t"] <= dissolve["end"]:
+                dissolve["t"] = nearest["t"]
             gradual = [event for event in gradual if event not in existing]
-    final = sorted(others + text_changes + cuts + gradual + dissolves, key=lambda event: event["t"])
+
+    if detect_dissolves:
+        def transition_delta(t: float) -> np.ndarray | None:
+            before_start = bisect_left(times, t - GRADUAL_GAP_S - 0.2)
+            before_end = bisect_left(times, t - GRADUAL_GAP_S + 0.2)
+            after_start = bisect_left(times, t + GRADUAL_GAP_S - 0.2)
+            after_end = bisect_left(times, t + GRADUAL_GAP_S + 0.2)
+            if before_start == before_end or after_start == after_end:
+                return None
+            return frames[after_start:after_end].mean(axis=0) - frames[before_start:before_end].mean(axis=0)
+
+        def same_transition_direction(first: dict, second: dict) -> bool:
+            a, b = transition_delta(first["t"]), transition_delta(second["t"])
+            if a is None or b is None:
+                return False
+            denominator = float(np.linalg.norm(a) * np.linalg.norm(b))
+            return denominator > 1e-6 and float(np.sum(a * b) / denominator) >= 0.8
+
+        anchors: list[dict] = []
+        for event in sorted(gradual, key=lambda item: item["t"]):
+            previous = anchors[-1] if anchors else None
+            separated_by_cut = previous is not None and any(
+                previous["t"] < cut["t"] <= event["t"] for cut in cuts
+            )
+            duplicate = (
+                previous is not None and event["t"] - previous["t"] <= 0.6
+                and not separated_by_cut and same_transition_direction(previous, event)
+            )
+            if duplicate:
+                stronger = min((previous, event),
+                               key=lambda item: (item["view_kept"], -item["side_steadiness"]))
+                weaker = event if stronger is previous else previous
+                review.append({key: value for key, value in weaker.items()
+                               if key not in {"kind", "cue"}}
+                              | {"why": "nearby gradual reading shares the stronger anchor's context"})
+                anchors[-1] = stronger
+            else:
+                anchors.append(event)
+        gradual = anchors
+    final = sorted(others + text_changes + graphic_changes + cuts + gradual + dissolves,
+                   key=lambda event: event["t"])
     return final, sorted(review, key=lambda event: event["t"])
 
+
+
+def stable_picture_tiles(first: np.ndarray, last: np.ndarray) -> int:
+    """Count textured tiles whose structure and brightness barely change."""
+    rows = np.array_split(np.arange(first.shape[0]), 4)
+    columns = np.array_split(np.arange(first.shape[1]), 4)
+    stable = 0
+    for row in rows:
+        for column in columns:
+            before = first[np.ix_(row, column)]
+            after = last[np.ix_(row, column)]
+            if (min(float(before.std()), float(after.std())) >= 8
+                    and abs(float(before.mean() - after.mean())) <= 8
+                    and correlation(before, after) >= 0.9):
+                stable += 1
+    return stable
 
 
 def find_dissolves(frames: np.ndarray, times: list[float], cuts: list[float]) -> list[dict]:
     """Look for a full-frame blend between two different pictures on the source clock.
 
-    Test three interior frames. A dissolve follows one increasing mixture of both
-    pictures across the frame. A wipe, a flash or a moving camera usually does not.
-    The endpoints bound the evidence window, rather than marking exact edit frames.
+    Test an increasing mixture of both pictures across the frame. Longer windows
+    use four interior samples and regional agreement to tolerate scene motion while
+    rejecting localized overlays and pans. The endpoints bound the evidence window,
+    rather than marking exact edit frames.
     """
-    pictures = frames[:, ::4, ::4]
+    # Average each 4x4 source block before reducing resolution. Point sampling
+    # preserves camera jitter and compression texture that obscure a real blend.
+    count, height, width = frames.shape
+    height -= height % 4
+    width -= width % 4
+    pictures = frames[:, :height, :width].reshape(
+        count, height // 4, 4, width // 4, 4).mean(axis=(2, 4))
+    picture_contrast = pictures.std(axis=(1, 2))
     fits = []
     for middle in range(0, len(times), 2):
         t = times[middle]
-        for radius in (0.15, 0.22, 0.32, 0.45, 0.60):
+        for radius in (0.15, 0.22, 0.32, 0.45, 0.60, 1.0, 1.5, 2.0, 2.5, 3.0):
             if t - radius - 0.2 < times[0] or t + radius + 0.2 > times[-1]:
                 continue
             first = bisect_left(times, t - radius)
@@ -270,32 +425,160 @@ def find_dissolves(frames: np.ndarray, times: list[float], cuts: list[float]) ->
             energy = np.square(delta).sum()
             if energy < delta.size * 12 ** 2:
                 continue
-            inside = pictures[[bisect_left(times, t - radius / 2), middle,
-                               bisect_left(times, t + radius / 2)]] - start
+            # Longer dissolves contain enough motion that a single global pixel
+            # fit is brittle. Sample their blend trajectory more densely and
+            # require it to progress in several independent picture regions.
+            long_fit = radius > 0.60
+            fractions = (0.2, 0.4, 0.6, 0.8) if long_fit else (0.25, 0.5, 0.75)
+            indices = [bisect_left(times, t - radius + 2 * radius * fraction)
+                       for fraction in fractions]
+            inside = pictures[indices] - start
             mix = (inside * delta).sum(axis=(1, 2)) / energy
-            if not (0.12 <= mix[0] <= 0.40 and 0.35 <= mix[1] <= 0.65
-                    and 0.60 <= mix[2] <= 0.88 and min(np.diff(mix)) >= 0.12):
+            if long_fit:
+                if not (0.05 <= mix[0] <= 0.40 and 0.20 <= mix[1] <= 0.60
+                        and 0.40 <= mix[2] <= 0.80 and 0.60 <= mix[3] <= 0.95
+                        and min(np.diff(mix)) >= 0.08):
+                    continue
+            elif not (0.12 <= mix[0] <= 0.40 and 0.35 <= mix[1] <= 0.65
+                      and 0.60 <= mix[2] <= 0.88 and min(np.diff(mix)) >= 0.12):
                 continue
             residual = np.square(inside - mix[:, None, None] * delta).sum(axis=(1, 2))
             error = float(np.sqrt(residual.max() / energy))
-            if error > 0.13:
+            # Moving scenery leaves residual error, but a high-error fit is often
+            # a pan or lighting change. Keep long-window tolerance bounded.
+            if error > (0.38 if long_fit else 0.13):
                 continue
-            if aligned_similarity(frames[first], frames[last]) > GRADUAL_VIEW:
+            endpoint_rms = float(np.sqrt(energy / delta.size))
+            if long_fit and error > 0.30 and endpoint_rms < 20:
                 continue
-            fits.append((error, first, middle, last))
+            # A fade to or from a flat card/black/white field is not evidence of
+            # two pictures dissolving together.
+            if min(picture_contrast[first], picture_contrast[last]) < 8:
+                continue
+            if long_fit:
+                # A global overlay/title fade can mimic a mixture in aggregate.
+                # Demand the same increasing blend in all four quadrants;
+                # camera pans tend to produce inconsistent regional weights.
+                h, w = delta.shape
+                regional = []
+                for y0, y1, x0, x1 in ((0, h // 2, 0, w // 2), (0, h // 2, w // 2, w),
+                                      (h // 2, h, 0, w // 2), (h // 2, h, w // 2, w)):
+                    region_delta = delta[y0:y1, x0:x1]
+                    region_energy = np.square(region_delta).sum()
+                    if region_energy < region_delta.size * 8 ** 2:
+                        continue
+                    regional_mix = (inside[:, y0:y1, x0:x1] * region_delta).sum(axis=(1, 2)) / region_energy
+                    if (np.all(np.diff(regional_mix) >= 0.04)
+                            and (error <= 0.30 or np.max(np.abs(regional_mix - mix)) <= 0.15)
+                            and regional_mix[0] <= 0.48 and regional_mix[-1] >= 0.52
+                            and regional_mix[-1] - regional_mix[0] >= 0.35):
+                        regional.append(regional_mix)
+                if len(regional) < 4:
+                    continue
+            else:
+                # Short title/logo fades often alter only a small overlay region.
+                # Require picture change across at least three quadrants, and
+                # reject a nearly uniform endpoint shift such as a white dip.
+                h, w = delta.shape[:2]
+                active_regions = 0
+                for y0, y1, x0, x1 in ((0, h // 2, 0, w // 2), (0, h // 2, w // 2, w),
+                                      (h // 2, h, 0, w // 2), (h // 2, h, w // 2, w)):
+                    region_delta = delta[y0:y1, x0:x1]
+                    if np.square(region_delta).mean() >= 8 ** 2:
+                        active_regions += 1
+                if active_regions < 3 or np.std(delta) < max(4.0, 0.2 * abs(float(np.mean(delta)))):
+                    continue
+            endpoint_similarity = aligned_similarity(frames[first], frames[last])
+            similarity_limit = 0.50 if long_fit and error > 0.20 else GRADUAL_VIEW
+            rescued = False
+            context_first, context_last = first, last
+            if endpoint_similarity > similarity_limit:
+                # Similar-looking shots can remain aligned through the middle of
+                # a dissolve. Rescue only a tight, low-residual fit whose wider
+                # context proves two textured pictures and contains no hard cut.
+                context_first = bisect_left(times, times[first] - 0.75)
+                context_last = bisect_left(times, times[last] + 0.75)
+                if (long_fit or context_first >= first
+                        or context_last <= last or context_last >= len(times)
+                        or any(times[context_first] <= cut <= times[context_last] for cut in cuts)
+                        or min(picture_contrast[context_first], picture_contrast[context_last]) < 8
+                        or aligned_similarity(frames[context_first], frames[context_last]) > GRADUAL_VIEW):
+                    continue
+                context_delta = pictures[context_last] - pictures[context_first]
+                context_energy = np.square(context_delta).sum()
+                if context_energy < context_delta.size * 12 ** 2:
+                    continue
+                direction = float((delta * context_delta).sum() / max(
+                    np.linalg.norm(delta) * np.linalg.norm(context_delta), 1e-9))
+                context_mix = [float(((pictures[index] - pictures[context_first]) * context_delta).sum()
+                                     / context_energy) for index in (first, last)]
+                if direction < 0.7 or not (0.05 <= context_mix[0] <= 0.35
+                                           and 0.55 <= context_mix[1] <= 0.95):
+                    continue
+                rescued = True
+            # Compact color/luma signature lets neighboring windows from one
+            # moving-scene dissolve be joined without spanning an unrelated event.
+            h, w = delta.shape[:2]
+            signature = []
+            for y0, y1, x0, x1 in ((0, h // 2, 0, w // 2), (0, h // 2, w // 2, w),
+                                  (h // 2, h, 0, w // 2), (h // 2, h, w // 2, w)):
+                region = delta[y0:y1, x0:x1]
+                signature.extend(np.asarray(region.mean(axis=(0, 1))).reshape(-1).tolist())
+                signature.append(float(np.mean(np.abs(region))))
+            # A localized graphic or moving part can fit the global blend while
+            # most of the underlying picture remains the same. Reject candidates
+            # with five or more textured, unchanged tiles; confirmed scene mixes
+            # distribute changed structure across this grid.
+            if stable_picture_tiles(start, end) >= 5:
+                continue
+            fits.append((error, first, middle, last, radius, np.asarray(signature),
+                         rescued, context_first, context_last))
 
     # Several windows can fit the same dissolve. Keep the window with the best fit.
     accepted = []
-    for error, first, middle, last in sorted(fits):
+    for error, first, middle, last, radius, signature, rescued, context_first, context_last in sorted(
+            fits, key=lambda fit: (fit[6], fit[0])):
         start, end = times[first], times[last]
-        if any(start <= event["end"] and end >= event["start"] for event in accepted):
+        support_start = times[context_first] if rescued else start
+        support_end = times[context_last] if rescued else end
+        if any(
+            support_start <= event["_context_end"] and support_end >= event["_context_start"]
+            for event in accepted
+        ):
             continue
         accepted.append({
             "kind": "shot", "cue": "gradual", "transition": "dissolve",
             "t": round(times[middle], 3), "start": times[first], "end": times[last],
-            "blend_error": round(error, 3),
+            "blend_error": round(error, 3), "_radius": radius, "_signature": signature,
+            "_context_start": support_start, "_context_end": support_end,
         })
-    return accepted
+
+    # Adjacent long windows can each fit one half of a single extended dissolve.
+    # Join only when their regional color/luma changes point in a similar direction
+    # and no hard cut separates them.
+    merged = []
+    for event in sorted(accepted, key=lambda item: item["start"]):
+        if merged:
+            previous = merged[-1]
+            gap = event["start"] - previous["end"]
+            a, b = previous["_signature"], event["_signature"]
+            agreement = float(np.dot(a, b) / max(np.linalg.norm(a) * np.linalg.norm(b), 1e-9))
+            separated_by_cut = any(previous["end"] <= cut <= event["start"] for cut in cuts)
+            if (previous["_radius"] > 0.60 and event["_radius"] > 0.60
+                    and event["end"] - previous["start"] <= 7.0
+                    and 0 <= gap <= 0.7 and not separated_by_cut and agreement >= 0.55):
+                previous["end"] = event["end"]
+                previous["t"] = round((previous["t"] + event["t"]) / 2, 3)
+                previous["blend_error"] = round(max(previous["blend_error"], event["blend_error"]), 3)
+                previous["_signature"] = (a + b) / 2
+                continue
+        merged.append(event)
+    for event in merged:
+        event.pop("_radius")
+        event.pop("_signature")
+        event.pop("_context_start")
+        event.pop("_context_end")
+    return merged
 
 
 def gradual_change(frames: np.ndarray, times: list[float], t: float) -> tuple[float, float] | None:
@@ -629,6 +912,24 @@ def view_similarity(frames: np.ndarray, times: list[float], before: float, after
     return max(aligned_similarity(frames[a], frames[b]) for a in pre for b in post)
 
 
+def stable_textured_patches(before: np.ndarray, after: np.ndarray, minimum: int = 3) -> bool:
+    """Whether several textured regions remain aligned across adjacent frames."""
+    height, width = before.shape
+    stable = 0
+    for row in range(3):
+        y0, y1 = round(row * height / 3), round((row + 1) * height / 3)
+        for column in range(3):
+            x0, x1 = round(column * width / 3), round((column + 1) * width / 3)
+            first, second = before[y0:y1, x0:x1], after[y0:y1, x0:x1]
+            if min(float(first.std()), float(second.std())) < 8:
+                continue
+            if aligned_similarity(first, second) >= 0.90:
+                stable += 1
+                if stable >= minimum:
+                    return True
+    return False
+
+
 def native_cut_candidates(video: Path, duration: float) -> list[float]:
     """Get a separate abrupt-change cue from FFmpeg's scene score at source cadence."""
     filters = ("setpts=PTS-STARTPTS,scale=192:192:force_original_aspect_ratio=decrease,"
@@ -689,7 +990,9 @@ def transcribe(video: Path, out: Path, language: str | None, model: str) -> int:
     # Decode with ffmpeg ourselves: faster-whisper's own PyAV decoder breaks when pip pulls a
     # newer PyAV than it supports (open() got an unexpected keyword argument 'metadata_errors').
     segments, _ = engine.transcribe(decode_audio(video), language=language, word_timestamps=True,
-                                    vad_filter=True, condition_on_previous_text=False)
+                                    vad_filter=True,
+                                    vad_parameters={"speech_pad_ms": 900},
+                                    condition_on_previous_text=False)
     lines, words = [], []
     for segment in segments:
         lines.append(f"[{segment.start:.2f}] {segment.text.strip()}")

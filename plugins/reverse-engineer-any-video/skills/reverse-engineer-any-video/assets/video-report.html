@@ -59,9 +59,12 @@
     return hh ? `${hh}:${String(mm % 60).padStart(2, "0")}:${ss}` : `${mm}:${ss}`;
   };
   const tokens = value => {
-    const normalized = String(value || "").normalize("NFKC").toLocaleLowerCase();
-    try { return normalized.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[^\p{P}\p{S}\p{Z}\p{C}_]+/gu) || []; }
-    catch { return normalized.match(/[\u3040-\u30ff\u3400-\u9fff]|[^\W_]+/gu) || []; }
+    const normalized = String(value || "").normalize("NFKC").toLowerCase()
+      .replace(/ß/g, "ss").replace(/ς/g, "σ");
+    const parsed = normalized.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[^\p{P}\p{S}\p{Z}\p{C}_]+/gu) || [];
+    return parsed.map(token => /^[\p{Script=Latin}\p{N}]+$/u.test(token)
+      ? token.normalize("NFKD").replace(/\p{M}/gu, "")
+      : token);
   };
   function addText(tag, value, parent, className) {
     const node = document.createElement(tag);
@@ -133,28 +136,33 @@
   const coverage = document.getElementById("coverage");
   for (const [track, label] of [["speech", "Speech"], ["screen", "On-screen text"]]) {
     const state = videos[0].coverage?.[track] || "not indexed";
-    const span = addText("span", `${label}: ${state}`, coverage);
+    const source = track === "speech" ? videos[0].coverage?.speech_source : null;
+    const span = addText("span", `${label}: ${source || state}`, coverage);
     if (["skipped", "not indexed", "no audio"].includes(state)) span.classList.add("not-covered");
   }
   const transcript = document.getElementById("transcript");
   const words = videos[0].words || [];
-  if (words.length) {
+  const captions = videos[0].captions || [];
+  function transcriptLine(start, text) {
+    const row = document.createElement("div");
+    row.className = "transcript-line";
+    const jump = document.createElement("button");
+    jump.type = "button";
+    jump.textContent = formatTime(start);
+    jump.setAttribute("aria-label", `Seek to ${formatTime(start)}`);
+    jump.addEventListener("click", () => seek(0, start));
+    row.append(jump);
+    addText("span", text, row);
+    transcript.append(row);
+  }
+  if (captions.length) {
+    captions.forEach(cue => transcriptLine(cue.start, cue.text));
+  } else if (words.length) {
     let lineStart = -1;
     words.forEach(word => {
       if (lineStart < 0 || Number(word.start) - lineStart >= 4) {
         lineStart = Number(word.start);
-        const row = document.createElement("div");
-        row.className = "transcript-line";
-        const jump = document.createElement("button");
-        jump.type = "button";
-        jump.textContent = formatTime(word.start);
-        jump.setAttribute("aria-label", `Seek to ${formatTime(word.start)}`);
-        jump.addEventListener("click", () => seek(0, word.start));
-        row.append(jump);
-        const line = document.createElement("span");
-        line.textContent = word.word;
-        row.append(line);
-        transcript.append(row);
+        transcriptLine(lineStart, word.word);
       } else {
         transcript.lastElementChild.lastElementChild.append(document.createTextNode(` ${word.word}`));
       }
@@ -188,6 +196,13 @@
                     end: spokenWords[last].end,
                     text: spokenWords.slice(first, last + 1).map(word => word.word).join(" ")});
       }
+      (item.captions || []).forEach(cue => {
+        const cueTokens = tokens(cue.text);
+        const foundPhrase = cueTokens.some((_, start) =>
+          phrase.every((term, offset) => cueTokens[start + offset] === term));
+        if (foundPhrase) found.push({videoIndex, track: "said", start: cue.start, end: cue.end,
+                                    text: cue.text, source: "caption"});
+      });
       if (activeTrack !== "said") {
         let shown = null;
         const sampleEvery = Number(item.coverage?.minimum_sample_spacing_s) || 1;
@@ -233,7 +248,7 @@
       time.dateTime = `PT${hit.start}S`;
       const body = document.createElement("span");
       body.className = "result-text";
-      addText("span", hit.track, body, "track-label");
+      addText("span", hit.source || hit.track, body, "track-label");
       addText("blockquote", hit.text, body);
       if (hit.track === "shown" && hit.end > hit.start) {
         addText("span", `Shown through ${formatTime(hit.end)}`, body, "meta");

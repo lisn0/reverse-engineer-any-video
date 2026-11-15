@@ -62,7 +62,8 @@ def measurements(index: dict, events: list[dict], integrated: float | None) -> d
         "Median estimated shot (s)": statistics.median(shot_lengths),
         "Estimated shots under 1 s (%)": 100 * sum(length < 1 for length in shot_lengths) / len(shot_lengths),
         "Spoken words per video minute": (
-            len(index["words"]) * 60 / duration if coverage["speech"] == "indexed" else None
+            len(index["words"]) * 60 / duration
+            if coverage["speech"] == "indexed" and not index.get("captions") else None
         ),
         "Samples with visible text (%)": (
             100 * len(with_text) / len(frames) if frames and coverage["screen"] == "sampled" else None
@@ -111,6 +112,7 @@ def report_video(path: Path, index: dict, report_dir: Path, *, detect_dissolves:
         "pictureOffset": facts["picture_offset_s"],
         "coverage": index["coverage"],
         "words": index["words"],
+        "captions": index.get("captions", []),
         "frames": [
             {**frame, "image": relative_url(path.parent / frame["image"], report_dir)}
             for frame in index["frames"]

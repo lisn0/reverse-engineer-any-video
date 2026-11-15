@@ -89,6 +89,68 @@ def audio_offset(video: Path, picture_offset: float) -> float:
     return audio_start - container_start - picture_offset
 
 
+def embedded_captions(video: Path, language: str | None, duration: float,
+                      picture_offset: float) -> tuple[list[dict], str | None]:
+    """Read a matching-language text subtitle stream, preserving cue-level timing."""
+    probe = ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(video)]
+    streams = json.loads(evidence.run(probe)).get("streams", [])
+    if language:
+        wanted = language.casefold().split("-")[0]
+    else:
+        audio = [stream for stream in streams if stream.get("codec_type") == "audio"]
+        audio_language = str(audio[0].get("tags", {}).get("language", "")).casefold() if audio else ""
+        if not audio_language:
+            return [], None
+        wanted = audio_language.split("-")[0]
+    aliases = {
+        "en": {"en", "eng"}, "eng": {"en", "eng"},
+        "fr": {"fr", "fra", "fre"}, "fra": {"fr", "fra", "fre"}, "fre": {"fr", "fra", "fre"},
+        "de": {"de", "deu", "ger"}, "deu": {"de", "deu", "ger"}, "ger": {"de", "deu", "ger"},
+        "es": {"es", "spa"}, "spa": {"es", "spa"},
+        "it": {"it", "ita"}, "ita": {"it", "ita"},
+        "pt": {"pt", "por"}, "por": {"pt", "por"},
+        "ja": {"ja", "jpn"}, "jpn": {"ja", "jpn"},
+        "zh": {"zh", "zho", "chi"}, "zho": {"zh", "zho", "chi"}, "chi": {"zh", "zho", "chi"},
+    }
+    accepted = aliases.get(wanted, {wanted})
+    candidates = []
+    bitmap = {"hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "xsub"}
+    for stream in streams:
+        if (stream.get("codec_type") != "subtitle" or stream.get("codec_name") in bitmap
+                or stream.get("disposition", {}).get("forced", 0)):
+            continue
+        tag = str(stream.get("tags", {}).get("language", "")).casefold()
+        if tag.split("-")[0] in accepted:
+            candidates.append(stream)
+    if not candidates:
+        return [], None
+    candidates.sort(key=lambda item: -int(item.get("disposition", {}).get("default", 0)))
+    stream = candidates[0]
+    result = subprocess.run(
+        ["ffmpeg", "-nostdin", "-v", "error", "-i", str(video), "-map", f"0:{stream['index']}",
+         "-f", "srt", "pipe:1"], capture_output=True, text=True,
+    )
+    if result.returncode:
+        return [], None
+    pattern = re.compile(
+        r"(?m)^\s*\d+\s*\n(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*"
+        r"(\d{2}:\d{2}:\d{2}[,.]\d{3})[^\n]*\n(.*?)(?=\n\s*\n|\Z)", re.S,
+    )
+    def seconds(value: str) -> float:
+        hours, minutes, rest = value.replace(",", ".").split(":")
+        return int(hours) * 3600 + int(minutes) * 60 + float(rest)
+    cues = []
+    for match in pattern.finditer(result.stdout):
+        start = seconds(match.group(1)) - picture_offset
+        end = seconds(match.group(2)) - picture_offset
+        text = re.sub(r"<[^>]*>", "", match.group(3)).replace(r"\N", " ").strip()
+        text = re.sub(r"\s+", " ", text)
+        if text and end > 0 and start < duration:
+            cues.append({"text": text, "start": round(max(0, start), 3),
+                         "end": round(min(duration, end), 3)})
+    return cues, str(stream.get("tags", {}).get("language", wanted))
+
+
 def index_video(args: argparse.Namespace) -> dict:
     if not args.no_ocr and shutil.which("tesseract") is None:
         raise SystemExit("On-screen text requires Tesseract. Install it or pass --no-ocr.")
@@ -119,20 +181,29 @@ def build_index(args: argparse.Namespace, local: Path, stage: Path) -> dict:
         source = {"type": "url", **evidence.source_facts(metadata, include_description=False)}
     facts = evidence.probe(video)
     words = []
+    captions = []
+    speech_source = None
     speech = "skipped" if args.no_transcript else "no audio"
     if facts["has_audio"] and not args.no_transcript:
-        try:
-            evidence.transcribe(video, stage, args.language, args.whisper_model)
-        except ModuleNotFoundError as exc:
-            if exc.name != "faster_whisper":
-                raise
-            raise SystemExit("Speech needs faster-whisper. Install it or pass --no-transcript.") from exc
-        offset = audio_offset(video, facts["picture_offset_s"])
-        for word in json.loads((stage / "words.json").read_text(encoding="utf-8")):
-            start, end = word["start"] + offset, word["end"] + offset
-            if end > 0 and start < facts["duration_s"]:
-                words.append({"word": word["word"], "start": round(max(0, start), 3),
-                              "end": round(min(facts["duration_s"], end), 3)})
+        captions, caption_language = embedded_captions(
+            video, args.language, facts["duration_s"], facts["picture_offset_s"]
+        )
+        if captions:
+            speech_source = f"embedded captions ({caption_language})"
+        else:
+            try:
+                evidence.transcribe(video, stage, args.language, args.whisper_model)
+            except ModuleNotFoundError as exc:
+                if exc.name != "faster_whisper":
+                    raise
+                raise SystemExit("Speech needs faster-whisper. Install it or pass --no-transcript.") from exc
+            offset = audio_offset(video, facts["picture_offset_s"])
+            for word in json.loads((stage / "words.json").read_text(encoding="utf-8")):
+                start, end = word["start"] + offset, word["end"] + offset
+                if end > 0 and start < facts["duration_s"]:
+                    words.append({"word": word["word"], "start": round(max(0, start), 3),
+                                  "end": round(min(facts["duration_s"], end), 3)})
+            speech_source = "faster-whisper"
         speech = "indexed"
     frames = sample_frames(video, stage, args.sample_every)
     if not args.no_ocr:
@@ -143,10 +214,12 @@ def build_index(args: argparse.Namespace, local: Path, stage: Path) -> dict:
         "source": source,
         "video": str(video) if local.is_file() else video.name,
         "facts": facts,
-        "coverage": {"speech": speech, "screen": "skipped" if args.no_ocr else "sampled",
+        "coverage": {"speech": speech, "speech_source": speech_source,
+                     "screen": "skipped" if args.no_ocr else "sampled",
                      "minimum_sample_spacing_s": args.sample_every},
         "overview": sheets,
         "words": words,
+        "captions": captions,
         "frames": frames,
     }
     (stage / "index.json").write_text(
@@ -160,7 +233,14 @@ TOKEN = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]|(?:(?![\u3040-\u30ff\u3400-\u9
 
 
 def tokens(text: str) -> list[str]:
-    return TOKEN.findall(unicodedata.normalize("NFKC", text).casefold())
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    result = []
+    for token in TOKEN.findall(normalized):
+        if all("LATIN" in unicodedata.name(char, "") or char.isdigit() for char in token):
+            token = "".join(char for char in unicodedata.normalize("NFKD", token)
+                            if not unicodedata.combining(char))
+        result.append(token)
+    return result
 
 
 def speech_hits(words: list[dict], query: list[str]) -> list[dict]:
@@ -175,6 +255,16 @@ def speech_hits(words: list[dict], query: list[str]) -> list[dict]:
             continue
         hits.append({"track": "said", "start": words[first]["start"], "end": words[last]["end"],
                      "text": " ".join(word["word"] for word in words[first:last + 1])})
+    return hits
+
+
+def caption_hits(captions: list[dict], query: list[str]) -> list[dict]:
+    hits = []
+    for cue in captions:
+        terms = tokens(cue["text"])
+        if any(terms[i:i + len(query)] == query for i in range(len(terms) - len(query) + 1)):
+            hits.append({"track": "said", "start": cue["start"], "end": cue["end"],
+                         "text": cue["text"], "source": "embedded captions"})
     return hits
 
 
@@ -221,6 +311,7 @@ def search(indexes: list[Path], query: str, track: str) -> dict:
         hits = []
         if track in ("all", "said"):
             hits.extend(speech_hits(index["words"], query_tokens))
+            hits.extend(caption_hits(index.get("captions", []), query_tokens))
         if track in ("all", "shown"):
             hits.extend(screen_hits(index["frames"], query_tokens))
         for hit in hits:

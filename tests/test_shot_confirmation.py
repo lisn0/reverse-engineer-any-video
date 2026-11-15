@@ -128,6 +128,15 @@ class ShotConfirmation(unittest.TestCase):
         self.assertGreaterEqual(found[0]["t"], 2.0)
         self.assertLessEqual(found[0]["t"], 2.68)
 
+    def test_long_blend_is_found_once_in_opt_in_mode(self):
+        a, b = texture(21), texture(22)
+        blend = [a + (b - a) * step / 125 for step in range(1, 125)]
+        frames, times = clip(*[a] * 50, *blend, *[b] * 50)
+        found = shots(EV["confirm_shots"](frames, times, [], [], detect_dissolves=True))
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["transition"], "dissolve")
+        self.assertTrue(2.0 <= found[0]["t"] <= 7.0)
+
     def test_candidate_inside_one_steady_view_goes_to_review(self):
         a = texture(9)
         moving = []

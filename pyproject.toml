@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reverse-engineer-any-video"
+version = "0.2.1"
+description = "Index, inspect, compare, and reverse-engineer videos from local files or supported URLs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+  "video-analysis",
+  "video-reverse-engineering",
+  "video-transcription",
+  "shot-detection",
+  "yt-dlp",
+  "ffmpeg",
+  "computer-vision",
+  "content-analysis",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Video",
+  "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+  "numpy>=1.24",
+  "yt-dlp",
+]
+
+[project.optional-dependencies]
+transcription = ["faster-whisper"]
+
+[project.urls]
+Homepage = "https://github.com/lisn0/reverse-engineer-any-video"
+Repository = "https://github.com/lisn0/reverse-engineer-any-video"
+Issues = "https://github.com/lisn0/reverse-engineer-any-video/issues"
+Changelog = "https://github.com/lisn0/reverse-engineer-any-video/releases"
+
+[project.scripts]
+reverse-engineer-any-video = "reverse_engineer_any_video.scripts.cli:main"
+
+[tool.setuptools]
+package-dir = {reverse_engineer_any_video = "plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video"}
+packages = ["reverse_engineer_any_video", "reverse_engineer_any_video.scripts"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+reverse_engineer_any_video = ["assets/video-report.html"]

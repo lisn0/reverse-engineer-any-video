@@ -16,7 +16,10 @@ import unicodedata
 from itertools import groupby
 from pathlib import Path
 
-import evidence
+if __package__:
+    from . import evidence
+else:
+    import evidence
 
 
 def run_ffmpeg(*arguments: str) -> str:
@@ -416,7 +419,10 @@ def main() -> int:
     elif args.command == "frame":
         result = extract_frame(args.index, args.at, args.box, args.out)
     else:
-        from video_report import render_report
+        if __package__:
+            from .video_report import render_report
+        else:
+            from video_report import render_report
 
         indexes = (args.index,) if args.command == "view" else (args.reference, args.candidate)
         result = render_report([load_index(path) for path in indexes], args.out,

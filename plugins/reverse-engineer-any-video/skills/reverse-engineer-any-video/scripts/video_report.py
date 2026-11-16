@@ -11,7 +11,10 @@ import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
-import evidence
+if __package__:
+    from . import evidence
+else:
+    import evidence
 
 TEMPLATE = Path(__file__).resolve().parents[1] / "assets/video-report.html"
 

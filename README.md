@@ -1,10 +1,49 @@
-# reverse-engineer-any-video
+# Reverse Engineer Any Video
 
-**Ask questions about a video, search what was said or shown, or work out how it was made.**
+Local video analysis CLI and Agent Skill for breaking down how a video was
+edited. Analyze a local file or a URL supported by yt-dlp, detect shot changes,
+inspect motion on timestamped contact sheets, and search transcripts and
+on-screen text.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/lisn0/reverse-engineer-any-video/blob/main/LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-black.svg)
+
+[PyPI](https://pypi.org/project/reverse-engineer-any-video/) ·
+[npm](https://www.npmjs.com/package/reverse-engineer-any-video) ·
+[GitHub Releases](https://github.com/lisn0/reverse-engineer-any-video/releases)
+
+## Command-line quickstart
+
+Install FFmpeg and ffprobe on your PATH. If you have Node.js and `uvx`, run
+the standalone CLI through npm:
+
+```sh
+npx --yes reverse-engineer-any-video index ./clip.mp4 --out runs/clip --no-transcript --no-ocr
+```
+
+For a Python install, use PyPI from a virtual environment:
+
+```sh
+python -m pip install reverse-engineer-any-video
+reverse-engineer-any-video index ./clip.mp4 --out runs/clip --no-transcript --no-ocr
+reverse-engineer-any-video view runs/clip --out player.html
+```
+
+This first run creates timestamped overview frames and a reusable index.
+Remove `--no-ocr` after installing Tesseract to search text shown on screen.
+Embedded text captions can supply speech search. Install
+`reverse-engineer-any-video[transcription]` from PyPI if you also need
+faster-whisper for audio without matching text captions. For npm, set
+`REVERSE_ENGINEER_ANY_VIDEO_TRANSCRIPTION=1` in the launcher's environment
+to include the same extra. Omit `--no-transcript` when you want speech indexed.
+
+Use `reverse-engineer-any-video evidence --help` for shot, motion, and audio
+evidence, and `reverse-engineer-any-video scan-channel --help` for YouTube or
+TikTok channel analysis. The npm command runs the matching PyPI version using
+`uvx`.
+
+## Install the Agent Skill
 
 ```bash
 npx skills add lisn0/reverse-engineer-any-video
@@ -12,7 +51,7 @@ npx skills add lisn0/reverse-engineer-any-video
 
 Then ask your agent *"What happens in this video?"*, *"Where does it say calibration complete?"*, *"What does the person say about setup?"* or *"How was this video made?"*.
 
-![Demo: install the skill, ask how a clip was made, evidence.py measures it, contact sheet, a cut and a dissolve from changes.json, and the agent's labelled answer](docs/assets/demo.gif)
+![Demo showing a timestamped contact sheet, a cut, and a dissolve measured from video frames](https://raw.githubusercontent.com/lisn0/reverse-engineer-any-video/main/docs/assets/demo.gif)
 
 <sub>Demo clip: a 30-second excerpt (3:20 to 3:50) of
 [*Tears of Steel*](https://mango.blender.org/) (2012), © Blender Foundation, licensed
@@ -52,7 +91,7 @@ winners versus flops, a small rebuild test and a blind review. Every claim is la
 ## Install
 
 The skill is a standard [Agent Skills](https://agentskills.io) `SKILL.md` folder at
-[`plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video/`](plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video/).
+[`plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video/`](https://github.com/lisn0/reverse-engineer-any-video/tree/main/plugins/reverse-engineer-any-video/skills/reverse-engineer-any-video).
 `SKILL.md` holds the workflow; `references/` holds what the agent loads on demand (how to
 read the evidence, a fingerprint catalogue, channel comparison, rebuild and blind review,
 and a list of known pitfalls, each with the check that prevents it); `assets/` holds the
@@ -241,7 +280,7 @@ doesn't clearly beat it. Of the five held-out false positives, checked frame by 
 was a real cut missing from the reference and four were motion or light changes inside one
 view.
 
-[benchmark/README.md](benchmark/README.md) has the full method, hand-labelled method
+[benchmark/README.md](https://github.com/lisn0/reverse-engineer-any-video/blob/main/benchmark/README.md) has the full method, hand-labelled method
 questions, audio and motion tests, runtimes and the scoring scripts. Some benchmark
 scripts need extra packages (soundfile and kokoro for `make_ai_case.py`; opencv and pillow
 for the Dissect comparison).
@@ -322,4 +361,4 @@ inside this tool or is copied into it.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/lisn0/reverse-engineer-any-video/blob/main/LICENSE)

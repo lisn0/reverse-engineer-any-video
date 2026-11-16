@@ -1,0 +1,35 @@
+{
+  "name": "reverse-engineer-any-video",
+  "version": "0.2.1",
+  "description": "AI-assisted video analysis for transcripts, scenes, visual evidence, and searchable reports.",
+  "keywords": [
+    "video-analysis",
+    "video-transcription",
+    "video-understanding",
+    "video-forensics",
+    "scene-detection",
+    "transcript-search",
+    "computer-vision",
+    "yt-dlp",
+    "ffmpeg",
+    "ai-tools"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lisn0/reverse-engineer-any-video.git"
+  },
+  "homepage": "https://github.com/lisn0/reverse-engineer-any-video#readme",
+  "bugs": {
+    "url": "https://github.com/lisn0/reverse-engineer-any-video/issues"
+  },
+  "bin": {
+    "reverse-engineer-any-video": "bin/reverse-engineer-any-video.mjs"
+  },
+  "files": [
+    "bin/reverse-engineer-any-video.mjs"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

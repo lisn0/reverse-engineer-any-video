@@ -184,5 +184,23 @@ class Measures(unittest.TestCase):
         self.assertEqual(EV["isolated_spikes"](steps, times, 0.15, 2.0), [])
 
 
+class SheetPlanning(unittest.TestCase):
+    def test_sheet_seeks_stop_at_last_safe_millisecond(self):
+        captured = {}
+        original_sheets = EV["sheets"]
+        EV["sheets"] = lambda video, name, times, out: (
+            captured.setdefault(name, times) or []
+        )
+        changes = {"events": [{"t": 1.85}], "uncertain_shots": [], "last_frame_s": 1.916667}
+        try:
+            EV["build_sheets"](Path("unused.mp4"), 2.0, changes, Path("unused"))
+        finally:
+            EV["sheets"] = original_sheets
+
+        self.assertEqual(captured["changes"], [1.916])
+        self.assertTrue(all(t <= 1.916 for times in captured.values() for t in times))
+        self.assertEqual(changes["events"][0]["t"], 1.85)
+
+
 if __name__ == "__main__":
     unittest.main()

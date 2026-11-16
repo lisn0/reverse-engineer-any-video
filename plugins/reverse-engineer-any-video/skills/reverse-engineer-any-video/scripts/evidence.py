@@ -156,6 +156,9 @@ def find_changes(video: Path, duration: float, out: Path, *, detect_dissolves: b
     changes["events"], changes["uncertain_shots"] = confirm_shots(
         native, times, events, uncertain, detect_dissolves=detect_dissolves
     )
+    if times:
+        # Keep the last safe seek point on the picture-relative clock for sheet planning.
+        changes["last_frame_s"] = times[-1]
     return changes
 
 
@@ -803,6 +806,14 @@ def build_sheets(video: Path, duration: float, changes: dict, out: Path) -> dict
         # Just after each change, so the new state is on screen.
         "changes": [min(t + 0.15, duration - 0.05) for t in change_times],
     }
+    last_frame_s = changes.get("last_frame_s")
+    if last_frame_s is not None:
+        # Floor to milliseconds so FFmpeg's formatted -ss seek cannot round past EOF.
+        last_safe_ms = math.floor(last_frame_s * 1000)
+        plans = {
+            name: [round(min(t, last_safe_ms / 1000), 3) for t in times]
+            for name, times in plans.items()
+        }
     return {name: sheets(video, name, times, out) for name, times in plans.items() if times}
 
 
